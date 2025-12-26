@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ================= CONFIGURAÇÃO DA PÁGINA =================
+# ================= CONFIGURAÇÃO =================
 st.set_page_config(
     page_title="Painel Financeiro Pessoal",
     page_icon="💰",
@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("💰 Painel Financeiro Pessoal")
-st.caption("Ver o dinheiro com clareza muda decisões.")
+st.caption("Clareza financeira é poder silencioso.")
 
 # ================= UPLOAD =================
 arquivo = st.file_uploader(
@@ -18,17 +18,19 @@ arquivo = st.file_uploader(
     type=["xlsx"]
 )
 
-# ================= FUNÇÃO ROBUSTA DE LIMPEZA =================
+# ================= FUNÇÕES =================
 def limpar_valor(coluna):
     coluna = coluna.astype(str)
     coluna = coluna.str.replace(r"[^\d,.-]", "", regex=True)
     coluna = coluna.str.replace(".", "", regex=False)
     coluna = coluna.str.replace(",", ".", regex=False)
-    return pd.to_numeric(coluna, errors="coerce").fillna(0)
+    return pd.to_numeric(coluna, errors="coerce")
+
+def formatar_real(valor):
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ================= APP =================
 if arquivo:
-    # Lê a PRIMEIRA aba (qualquer nome)
     df = pd.read_excel(arquivo, sheet_name=0)
 
     # ---------- RECEITAS (B:E) ----------
@@ -42,34 +44,48 @@ if arquivo:
     # ---------- LIMPEZA ----------
     for tabela in [receitas, despesas]:
         tabela.dropna(how="all", inplace=True)
-        tabela["VALOR"] = limpar_valor(tabela["VALOR"])
+        tabela = tabela[tabela["MÊS"].str.lower() != "mês"]  # remove linha fantasma
+        tabela["VALOR"] = limpar_valor(tabela["VALOR"]).fillna(0)
 
     # ---------- RESUMO MENSAL ----------
     resumo = (
-        receitas.groupby("MÊS")["VALOR"].sum()
-        .rename("RECEITA")
-        .to_frame()
-        .join(
-            despesas.groupby("MÊS")["VALOR"].sum().rename("DESPESA"),
+        receitas.groupby("MÊS", as_index=False)["VALOR"].sum()
+        .rename(columns={"VALOR": "RECEITA"})
+        .merge(
+            despesas.groupby("MÊS", as_index=False)["VALOR"].sum()
+            .rename(columns={"VALOR": "DESPESA"}),
+            on="MÊS",
             how="outer"
         )
         .fillna(0)
-        .reset_index()
     )
 
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
+    # ---------- ORDENA MESES ----------
+    ordem_meses = ["jan", "fev", "mar", "abr", "mai", "jun",
+                   "jul", "ago", "set", "out", "nov", "dez"]
+    resumo["ordem"] = resumo["MÊS"].str.lower().map(
+        {m: i for i, m in enumerate(ordem_meses)}
+    )
+    resumo = resumo.sort_values("ordem").drop(columns="ordem")
+
     # ================= KPIs =================
     col1, col2, col3 = st.columns(3)
-    col1.metric("💵 Receita Total", f"R$ {resumo['RECEITA'].sum():,.2f}")
-    col2.metric("💸 Despesa Total", f"R$ {resumo['DESPESA'].sum():,.2f}")
-    col3.metric("⚖️ Saldo Geral", f"R$ {resumo['SALDO'].sum():,.2f}")
+    col1.metric("💵 Receita Total", formatar_real(resumo["RECEITA"].sum()))
+    col2.metric("💸 Despesa Total", formatar_real(resumo["DESPESA"].sum()))
+    col3.metric("⚖️ Saldo Geral", formatar_real(resumo["SALDO"].sum()))
 
     st.divider()
 
-    # ================= TABELA =================
+    # ================= TABELA FORMATADA =================
     st.subheader("📊 Resumo Mensal")
-    st.dataframe(resumo, use_container_width=True)
+
+    resumo_formatado = resumo.copy()
+    for col in ["RECEITA", "DESPESA", "SALDO"]:
+        resumo_formatado[col] = resumo_formatado[col].apply(formatar_real)
+
+    st.dataframe(resumo_formatado, use_container_width=True)
 
     # ================= GRÁFICOS =================
     st.plotly_chart(
@@ -99,7 +115,7 @@ if arquivo:
     # ================= DESPESAS POR CATEGORIA =================
     st.subheader("🧾 Para onde vai seu dinheiro")
 
-    despesas_cat = despesas.groupby("NOME")["VALOR"].sum().reset_index()
+    despesas_cat = despesas.groupby("NOME", as_index=False)["VALOR"].sum()
 
     st.plotly_chart(
         px.pie(
@@ -115,15 +131,15 @@ if arquivo:
     # ================= ALERTAS =================
     st.subheader("🚨 Alertas Financeiros")
 
-    meses_negativos = resumo[resumo["SALDO"] < 0]
+    negativos = resumo[resumo["SALDO"] < 0]
 
-    if meses_negativos.empty:
-        st.success("Nenhum mês no vermelho. Disciplina afiada.")
+    if negativos.empty:
+        st.success("Nenhum mês no vermelho. Controle absoluto.")
     else:
-        for _, row in meses_negativos.iterrows():
+        for _, row in negativos.iterrows():
             st.error(
                 f"No mês **{row['MÊS']}**, "
-                f"despesa maior que receita em R$ {abs(row['SALDO']):,.2f}"
+                f"você fechou negativo em {formatar_real(abs(row['SALDO']))}"
             )
 
 else:
