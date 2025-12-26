@@ -54,7 +54,7 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
     border-radius: 16px;
     border: 1px solid #1f1f2b;
     margin-bottom: 1.5rem;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: #9ca3af;
     font-style: italic;
     text-align: center;
@@ -63,7 +63,7 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA SEMANAL COM FALLBACK E ARQUIVO LOCAL
+# FRASE MOTIVADORA DIÁRIA COM ARQUIVO LOCAL
 # =========================
 FRASES_FALLBACK = [
     "Grandes conquistas exigem dedicação.",
@@ -86,25 +86,25 @@ def get_portuguese_quote():
         return random.choice(FRASES_FALLBACK)
 
 def load_or_update_quote():
-    semana_atual = date.today().isocalendar()[1]
+    hoje_str = date.today().isoformat()
     quote = ""
     if os.path.exists(QUOTE_FILE):
         with open(QUOTE_FILE, "r", encoding="utf-8") as f:
             try:
-                saved_week = int(f.readline().strip())
+                saved_date = f.readline().strip()
                 quote = f.readline().strip()
             except:
-                saved_week = -1
+                saved_date = ""
                 quote = ""
-        # Atualiza se a semana mudou
-        if saved_week != semana_atual:
+        # Atualiza se a data mudou
+        if saved_date != hoje_str:
             quote = get_portuguese_quote()
             with open(QUOTE_FILE, "w", encoding="utf-8") as f:
-                f.write(f"{semana_atual}\n{quote}")
+                f.write(f"{hoje_str}\n{quote}")
     else:
         quote = get_portuguese_quote()
         with open(QUOTE_FILE, "w", encoding="utf-8") as f:
-            f.write(f"{semana_atual}\n{quote}")
+            f.write(f"{hoje_str}\n{quote}")
     return quote
 
 quote = load_or_update_quote()
@@ -253,10 +253,14 @@ d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
-# COMPOSIÇÃO DO MÊS COM NOME + VALOR
+# COMPOSIÇÃO DO MÊS COM CORES AUTOMÁTICAS
 # =========================
 st.subheader("📌 Composição do mês")
 col_r, col_d = st.columns(2)
+
+def gerar_cores(n):
+    cores = px.colors.qualitative.Vivid
+    return [cores[i % len(cores)] for i in range(n)]
 
 with col_r:
     if not rec_mes.empty:
@@ -265,12 +269,10 @@ with col_r:
             values="VALOR",
             names="DESCRICAO",
             hole=0.55,
-            title="💰 Receitas"
+            title="💰 Receitas",
+            color_discrete_sequence=gerar_cores(len(rec_mes))
         )
-        fig_r.update_traces(
-            texttemplate="%{label}<br>R$ %{value:,.2f}",
-            textposition="inside"
-        )
+        fig_r.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
         fig_r.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
         st.plotly_chart(fig_r, use_container_width=True)
     else:
@@ -283,12 +285,10 @@ with col_d:
             values="VALOR",
             names="DESCRICAO",
             hole=0.55,
-            title="💸 Despesas"
+            title="💸 Despesas",
+            color_discrete_sequence=gerar_cores(len(des_mes))
         )
-        fig_d.update_traces(
-            texttemplate="%{label}<br>R$ %{value:,.2f}",
-            textposition="inside"
-        )
+        fig_d.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
         fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
         st.plotly_chart(fig_d, use_container_width=True)
     else:
