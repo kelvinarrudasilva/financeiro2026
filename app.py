@@ -48,13 +48,14 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 
 .quote-card {
     background: linear-gradient(145deg, #1b1b24, #16161d);
-    padding: 16px;
+    padding: 18px;
     border-radius: 16px;
     border: 1px solid #1f1f2b;
     margin-bottom: 1.5rem;
-    font-size: 1rem;
+    font-size: 1.3rem;
     color: #9ca3af;
     font-style: italic;
+    text-align: center;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -62,20 +63,18 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 # =========================
 # FRASE MOTIVADORA SEMANAL
 # =========================
-def get_quote():
+def get_portuguese_quote():
     try:
-        res = requests.get("https://zenquotes.io/api/today")
+        res = requests.get("https://motivacional.top/api.php?acao=aleatoria")
         data = res.json()
-        q = data[0].get("q", "")
-        a = data[0].get("a", "")
-        return f"“{q}” — {a}"
+        frase = data.get("dados", [{}])[0].get("frase", "")
+        return frase if frase else "Encontre na jornada sua própria luz."
     except:
-        return "Buscando inspiração…"
+        return "Inspiração não disponível no momento."
 
-# atualizar por semana
 semana_atual = date.today().isocalendar()[1]
 if st.session_state.get("quote_week") != semana_atual:
-    st.session_state["quote_text"] = get_quote()
+    st.session_state["quote_text"] = get_portuguese_quote()
     st.session_state["quote_week"] = semana_atual
 
 quote = st.session_state.get("quote_text", "")
@@ -174,22 +173,18 @@ if expandir:
     resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
 else:
     meses_a_mostrar = []
-    for i in range(4):  # atual + 3 meses
+    for i in range(4):
         mes = hoje.month + i
         ano = hoje.year
         if mes > 12:
             mes -= 12
             ano += 1
         meses_a_mostrar.append((ano, mes))
-    
     resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
 
 if resumo_plot.empty:
     resumo_plot = resumo.copy()
 
-# =========================
-# GRÁFICO PRINCIPAL
-# =========================
 st.subheader("📊 Balanço Financeiro")
 fig = px.bar(
     resumo_plot,
