@@ -2,19 +2,19 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ================= CONFIGURAÇÃO =================
+# ================= CONFIG =================
 st.set_page_config(
-    page_title="Painel Financeiro Pessoal",
-    page_icon="💰",
+    page_title="Virada Financeira",
+    page_icon="📊",
     layout="wide"
 )
 
-st.title("💰 Painel Financeiro Pessoal")
-st.caption("Quando os números ficam claros, as decisões ficam leves.")
+st.title("📊 Virada Financeira")
+st.caption("Onde o caos vira clareza — e o saldo respira.")
 
 # ================= UPLOAD =================
 arquivo = st.file_uploader(
-    "📂 Envie seu arquivo Excel financeiro",
+    "📂 Envie sua planilha financeira",
     type=["xlsx"]
 )
 
@@ -26,82 +26,73 @@ def limpar_valor(coluna):
     coluna = coluna.str.replace(",", ".", regex=False)
     return pd.to_numeric(coluna, errors="coerce").fillna(0)
 
-def formatar_real(valor):
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+def formatar_real(v):
+    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ================= APP =================
 if arquivo:
-    # Lê a primeira aba
     df = pd.read_excel(arquivo, sheet_name=0)
 
-    # -------- RECEITAS (B:E) --------
+    # -------- RECEITAS --------
     receitas = df.iloc[:, 1:5].copy()
-    receitas.columns = ["DATA", "MÊS", "NOME", "VALOR"]
+    receitas.columns = ["DATA", "MES", "NOME", "VALOR"]
 
-    # -------- DESPESAS (G:J) --------
+    # -------- DESPESAS --------
     despesas = df.iloc[:, 6:10].copy()
-    despesas.columns = ["DATA", "MÊS", "NOME", "VALOR"]
+    despesas.columns = ["DATA", "MES", "NOME", "VALOR"]
 
-    # -------- LIMPEZA --------
-    for tabela in [receitas, despesas]:
-        tabela.dropna(how="all", inplace=True)
-        tabela = tabela[tabela["MÊS"].astype(str).str.lower() != "mês"]
-        tabela["VALOR"] = limpar_valor(tabela["VALOR"])
+    # -------- LIMPEZA PESADA --------
+    for t in [receitas, despesas]:
+        t.dropna(how="all", inplace=True)
+        t["MES"] = t["MES"].astype(str).str.strip()
+        t = t[t["MES"].str.upper() != "MÊS"]
+        t["VALOR"] = limpar_valor(t["VALOR"])
 
-    # -------- RESUMO MENSAL (BLINDADO) --------
-    resumo_receitas = (
-        receitas.groupby("MÊS", as_index=False)["VALOR"]
-        .sum()
-        .rename(columns={"VALOR": "RECEITA"})
-    )
+    # ================= RESUMO MENSAL =================
+    rec = receitas.groupby("MES", as_index=False)["VALOR"].sum()
+    rec.rename(columns={"VALOR": "RECEITA"}, inplace=True)
 
-    resumo_despesas = (
-        despesas.groupby("MÊS", as_index=False)["VALOR"]
-        .sum()
-        .rename(columns={"VALOR": "DESPESA"})
-    )
+    des = despesas.groupby("MES", as_index=False)["VALOR"].sum()
+    des.rename(columns={"VALOR": "DESPESA"}, inplace=True)
 
-    resumo = resumo_receitas.merge(
-        resumo_despesas,
-        on="MÊS",
-        how="outer"
-    ).fillna(0)
+    resumo = pd.merge(rec, des, on="MES", how="outer")
 
-    resumo["RECEITA"] = resumo["RECEITA"].astype(float)
-    resumo["DESPESA"] = resumo["DESPESA"].astype(float)
+    # 🔥 BLINDAGEM FINAL
+    resumo["RECEITA"] = pd.to_numeric(resumo["RECEITA"], errors="coerce").fillna(0)
+    resumo["DESPESA"] = pd.to_numeric(resumo["DESPESA"], errors="coerce").fillna(0)
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
     # -------- ORDENA MESES --------
     ordem = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
-    resumo["ordem"] = resumo["MÊS"].str.lower().map({m:i for i,m in enumerate(ordem)})
+    resumo["ordem"] = resumo["MES"].str.lower().map({m:i for i,m in enumerate(ordem)})
     resumo = resumo.sort_values("ordem").drop(columns="ordem")
 
     # ================= KPIs =================
-    col1, col2, col3 = st.columns(3)
-    col1.metric("💵 Receita Total", formatar_real(resumo["RECEITA"].sum()))
-    col2.metric("💸 Despesa Total", formatar_real(resumo["DESPESA"].sum()))
-    col3.metric("⚖️ Saldo Geral", formatar_real(resumo["SALDO"].sum()))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💵 Receita Total", formatar_real(resumo["RECEITA"].sum()))
+    c2.metric("💸 Despesa Total", formatar_real(resumo["DESPESA"].sum()))
+    c3.metric("⚖️ Saldo Geral", formatar_real(resumo["SALDO"].sum()))
 
     st.divider()
 
     # ================= TABELA =================
     st.subheader("📊 Resumo Mensal")
 
-    resumo_vis = resumo.copy()
-    for c in ["RECEITA","DESPESA","SALDO"]:
-        resumo_vis[c] = resumo_vis[c].apply(formatar_real)
+    vis = resumo.copy()
+    for c in ["RECEITA", "DESPESA", "SALDO"]:
+        vis[c] = vis[c].apply(formatar_real)
 
-    st.dataframe(resumo_vis, use_container_width=True)
+    st.dataframe(vis, use_container_width=True)
 
     # ================= GRÁFICOS =================
     st.plotly_chart(
         px.bar(
             resumo,
-            x="MÊS",
-            y=["RECEITA","DESPESA"],
+            x="MES",
+            y=["RECEITA", "DESPESA"],
             barmode="group",
             template="plotly_dark",
-            title="Receita x Despesa por Mês"
+            title="Receita x Despesa"
         ),
         use_container_width=True
     )
@@ -109,7 +100,7 @@ if arquivo:
     st.plotly_chart(
         px.line(
             resumo,
-            x="MÊS",
+            x="MES",
             y="SALDO",
             markers=True,
             template="plotly_dark",
@@ -118,34 +109,16 @@ if arquivo:
         use_container_width=True
     )
 
-    # ================= DESPESAS POR CATEGORIA =================
-    st.subheader("🧾 Para onde vai seu dinheiro")
-
-    despesas_cat = despesas.groupby("NOME", as_index=False)["VALOR"].sum()
-
-    st.plotly_chart(
-        px.pie(
-            despesas_cat,
-            names="NOME",
-            values="VALOR",
-            hole=0.45,
-            template="plotly_dark"
-        ),
-        use_container_width=True
-    )
-
     # ================= ALERTAS =================
-    st.subheader("🚨 Alertas Financeiros")
+    st.subheader("🚨 Meses no Vermelho")
 
-    negativos = resumo[resumo["SALDO"] < 0]
+    neg = resumo[resumo["SALDO"] < 0]
 
-    if negativos.empty:
-        st.success("Nenhum mês no vermelho. Controle absoluto.")
+    if neg.empty:
+        st.success("Nenhum mês no vermelho. Gestão afiada.")
     else:
-        for _, r in negativos.iterrows():
-            st.error(
-                f"No mês **{r['MÊS']}**, saldo negativo de {formatar_real(abs(r['SALDO']))}"
-            )
+        for _, r in neg.iterrows():
+            st.error(f"{r['MES']}: déficit de {formatar_real(abs(r['SALDO']))}")
 
 else:
-    st.info("Envie o arquivo Excel para iniciar o painel.")
+    st.info("Envie o arquivo **VIRADA FINANCEIRA - Copia.xlsx** para iniciar.")
