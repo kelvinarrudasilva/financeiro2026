@@ -4,6 +4,7 @@ import plotly.express as px
 from datetime import datetime, date
 import requests
 import random
+import os
 
 # =========================
 # CONFIG GERAL
@@ -62,7 +63,7 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA SEMANAL COM FALLBACK
+# FRASE MOTIVADORA SEMANAL COM FALLBACK E ARQUIVO LOCAL
 # =========================
 FRASES_FALLBACK = [
     "Grandes conquistas exigem dedicação.",
@@ -73,6 +74,8 @@ FRASES_FALLBACK = [
     "Cada desafio é uma oportunidade disfarçada.",
 ]
 
+QUOTE_FILE = "quote.txt"
+
 def get_portuguese_quote():
     try:
         res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
@@ -82,13 +85,29 @@ def get_portuguese_quote():
     except:
         return random.choice(FRASES_FALLBACK)
 
-# atualizar por semana
-semana_atual = date.today().isocalendar()[1]
-if st.session_state.get("quote_week") != semana_atual:
-    st.session_state["quote_text"] = get_portuguese_quote()
-    st.session_state["quote_week"] = semana_atual
+def load_or_update_quote():
+    semana_atual = date.today().isocalendar()[1]
+    quote = ""
+    if os.path.exists(QUOTE_FILE):
+        with open(QUOTE_FILE, "r", encoding="utf-8") as f:
+            try:
+                saved_week = int(f.readline().strip())
+                quote = f.readline().strip()
+            except:
+                saved_week = -1
+                quote = ""
+        # Atualiza se a semana mudou
+        if saved_week != semana_atual:
+            quote = get_portuguese_quote()
+            with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+                f.write(f"{semana_atual}\n{quote}")
+    else:
+        quote = get_portuguese_quote()
+        with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+            f.write(f"{semana_atual}\n{quote}")
+    return quote
 
-quote = st.session_state.get("quote_text", "")
+quote = load_or_update_quote()
 
 # =========================
 # CABEÇALHO
