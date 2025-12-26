@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, date
+import requests
 
 # =========================
 # CONFIG GERAL
@@ -14,7 +15,7 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM
+# ESTILO PREMIUM + FRASE
 # =========================
 st.markdown("""
 <style>
@@ -44,14 +45,47 @@ h2, h3 { font-weight: 600; }
 section[data-testid="stSidebar"] { background-color: #0b0b10; border-right: 1px solid #1f1f2b; }
 
 hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
+
+.quote-card {
+    background: linear-gradient(145deg, #1b1b24, #16161d);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid #1f1f2b;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    color: #9ca3af;
+    font-style: italic;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# =========================
+# FRASE MOTIVADORA SEMANAL
+# =========================
+def get_quote():
+    try:
+        res = requests.get("https://zenquotes.io/api/today")
+        data = res.json()
+        q = data[0].get("q", "")
+        a = data[0].get("a", "")
+        return f"“{q}” — {a}"
+    except:
+        return "Buscando inspiração…"
+
+# atualizar por semana
+semana_atual = date.today().isocalendar()[1]
+if st.session_state.get("quote_week") != semana_atual:
+    st.session_state["quote_text"] = get_quote()
+    st.session_state["quote_week"] = semana_atual
+
+quote = st.session_state.get("quote_text", "")
 
 # =========================
 # CABEÇALHO
 # =========================
 st.title("🌑 Virada Financeira")
-st.caption("O dinheiro sob a luz da consciência.")
+if quote:
+    st.markdown(f'<div class="quote-card">{quote}</div>', unsafe_allow_html=True)
 
 # =========================
 # PLANILHA GOOGLE DRIVE
@@ -93,11 +127,9 @@ except:
 # =========================
 # BASES
 # =========================
-# Receitas (colunas B:E)
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-# Despesas (colunas G:J)
 despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
@@ -211,7 +243,7 @@ with col_r:
             title="💰 Receitas"
         )
         fig_r.update_traces(
-            texttemplate="%{label}<br>R$ %{value:,.2f}",  # label + valor
+            texttemplate="%{label}<br>R$ %{value:,.2f}",
             textposition="inside"
         )
         fig_r.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
@@ -229,7 +261,7 @@ with col_d:
             title="💸 Despesas"
         )
         fig_d.update_traces(
-            texttemplate="%{label}<br>R$ %{value:,.2f}",  # label + valor
+            texttemplate="%{label}<br>R$ %{value:,.2f}",
             textposition="inside"
         )
         fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
