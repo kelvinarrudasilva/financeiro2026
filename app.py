@@ -48,16 +48,13 @@ if not arquivo:
 df = pd.read_excel(arquivo)
 
 # =========================
-# RECEITAS
+# RECEITAS / DESPESAS
 # =========================
 receitas = df.iloc[1:, 1:5].copy()
-receitas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
+receitas.columns = ["DATA", "MES_TXT", "DESCRICAO", "VALOR"]
 
-# =========================
-# DESPESAS
-# =========================
 despesas = df.iloc[1:, 6:10].copy()
-despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
+despesas.columns = ["DATA", "MES_TXT", "DESCRICAO", "VALOR"]
 
 # =========================
 # LIMPEZA
@@ -69,6 +66,7 @@ for base in [receitas, despesas]:
     base["ANO"] = base["DATA"].dt.year
     base["MES_NUM"] = base["DATA"].dt.month
     base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
+    base["MES_ANO"] = base["MES"] + "/" + base["ANO"].astype(str)
 
 # =========================
 # RESUMO GERAL
@@ -83,24 +81,25 @@ c2.metric("💸 Despesa Total", formato_real(total_despesa))
 c3.metric("⚖️ Saldo Geral", formato_real(saldo_geral))
 
 # =========================
-# BALANÇO ANUAL
+# BALANÇO CONSOLIDADO
 # =========================
-st.subheader("📊 Balanço Anual — Receita x Despesa")
+st.subheader("📊 Balanço — Receita x Despesa")
 
-rec_m = receitas.groupby(["ANO", "MES_NUM", "MES"], as_index=False)["VALOR"].sum()
-rec_m.rename(columns={"VALOR": "RECEITA"}, inplace=True)
+rec_m = receitas.groupby(
+    ["ANO", "MES_NUM", "MES", "MES_ANO"], as_index=False
+)["VALOR"].sum().rename(columns={"VALOR": "RECEITA"})
 
-des_m = despesas.groupby(["ANO", "MES_NUM", "MES"], as_index=False)["VALOR"].sum()
-des_m.rename(columns={"VALOR": "DESPESA"}, inplace=True)
+des_m = despesas.groupby(
+    ["ANO", "MES_NUM", "MES", "MES_ANO"], as_index=False
+)["VALOR"].sum().rename(columns={"VALOR": "DESPESA"})
 
 resumo = pd.merge(
     rec_m, des_m,
-    on=["ANO", "MES_NUM", "MES"],
+    on=["ANO", "MES_NUM", "MES", "MES_ANO"],
     how="outer"
 ).fillna(0)
 
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
-
 resumo = resumo.sort_values(["ANO", "MES_NUM"])
 
 # =========================
@@ -113,21 +112,21 @@ ano_atual = hoje.year
 mes_atual = hoje.month
 
 if expandir:
+    # todos os meses do ANO ATUAL que existirem na planilha
     resumo_plot = resumo[resumo["ANO"] == ano_atual]
 else:
+    # mês atual + próximos 3 (mesmo atravessando ano)
     resumo_plot = resumo[
         (resumo["ANO"] > ano_atual) |
         ((resumo["ANO"] == ano_atual) & (resumo["MES_NUM"] >= mes_atual))
     ].head(4)
 
-# 🔒 GARANTIA: se ainda estiver vazio, mostra tudo
+# fallback de segurança
 if resumo_plot.empty:
     resumo_plot = resumo.copy()
 
-resumo_plot["MES_ANO"] = resumo_plot["MES"] + "/" + resumo_plot["ANO"].astype(str)
-
 # =========================
-# GRÁFICO ANUAL
+# GRÁFICO PRINCIPAL
 # =========================
 fig_anual = px.bar(
     resumo_plot,
@@ -139,7 +138,6 @@ fig_anual = px.bar(
 )
 
 fig_anual.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
-
 fig_anual.update_traces(selector=dict(name="RECEITA"), marker_color="#2ecc71")
 fig_anual.update_traces(selector=dict(name="DESPESA"), marker_color="#e74c3c")
 fig_anual.update_traces(selector=dict(name="SALDO"), marker_color="#3498db")
@@ -147,22 +145,29 @@ fig_anual.update_traces(selector=dict(name="SALDO"), marker_color="#3498db")
 st.plotly_chart(fig_anual, use_container_width=True)
 
 # =========================
-# SIDEBAR — MÊS
+# SIDEBAR — MÊS ATUAL
 # =========================
 st.sidebar.header("🔎 Análise Mensal")
 
-resumo["CHAVE"] = resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
+lista_meses = resumo["MES_ANO"].unique().tolist()
+mes_atual_chave = hoje.strftime("%b").lower() + "/" + str(ano_atual)
+
+if mes_atual_chave in lista_meses:
+    idx_padrao = lista_meses.index(mes_atual_chave)
+else:
+    idx_padrao = 0
 
 mes_sel = st.sidebar.selectbox(
     "Selecione o mês",
-    resumo["CHAVE"].unique()
+    lista_meses,
+    index=idx_padrao
 )
 
-ano_sel = int(mes_sel.split("/")[1])
-mes_txt = mes_sel.split("/")[0]
+mes_txt, ano_txt = mes_sel.split("/")
+ano_sel = int(ano_txt)
 
-rec_mes = receitas[(receitas["ANO"] == ano_sel) & (receitas["MES"] == mes_txt)]
-des_mes = despesas[(despesas["ANO"] == ano_sel) & (despesas["MES"] == mes_txt)]
+rec_mes = receitas[(receitas["MES"] == mes_txt) & (receitas["ANO"] == ano_sel)]
+des_mes = despesas[(despesas["MES"] == mes_txt) & (despesas["ANO"] == ano_sel)]
 
 # =========================
 # DETALHAMENTO
@@ -175,7 +180,7 @@ c5.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 c6.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
 # =========================
-# GRÁFICOS MENSAIS (MELHORES)
+# GRÁFICOS MENSAIS
 # =========================
 g1, g2 = st.columns(2)
 
