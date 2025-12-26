@@ -25,15 +25,9 @@ st.markdown("""
     --accent: #22c55e;
 }
 
-html, body, [data-testid="stApp"] {
-    background-color: var(--bg);
-}
+html, body, [data-testid="stApp"] { background-color: var(--bg); }
 
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1300px;
-}
+.block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
 
 h1 { font-weight: 700; letter-spacing: 0.5px; }
 h2, h3 { font-weight: 600; }
@@ -47,10 +41,7 @@ h2, h3 { font-weight: 600; }
 [data-testid="metric-label"] { color: var(--muted); font-size: 0.85rem; }
 [data-testid="metric-value"] { font-size: 1.6rem; font-weight: 700; }
 
-section[data-testid="stSidebar"] {
-    background-color: #0b0b10;
-    border-right: 1px solid #1f1f2b;
-}
+section[data-testid="stSidebar"] { background-color: #0b0b10; border-right: 1px solid #1f1f2b; }
 
 hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 </style>
@@ -74,17 +65,18 @@ PLANILHA_URL = (
 # =========================
 # FUNÇÕES
 # =========================
-def limpar_valor(col):
-    return (
-        col.astype(str)
-        .str.replace("R$", "", regex=False)
-        .str.replace(".", "", regex=False)
-        .str.replace(",", ".", regex=False)
-        .str.strip()
-        .replace("", "0")
-        .apply(pd.to_numeric, errors="coerce")
-        .fillna(0)
-    )
+def limpar_valor(v):
+    if pd.isna(v):
+        return 0.0
+    if isinstance(v, str):
+        v = v.replace("R$", "").replace(".", "").replace(",", ".").strip()
+        try:
+            return float(v)
+        except:
+            return 0.0
+    if isinstance(v, (int,float)):
+        return float(v)
+    return 0.0
 
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -101,15 +93,20 @@ except:
 # =========================
 # BASES
 # =========================
+# Receitas (colunas B:E, linha 2 é cabeçalho)
 receitas = df.iloc[1:, 1:5].copy()
-receitas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
+receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
+# Despesas (colunas G:J, linha 2 é cabeçalho)
 despesas = df.iloc[1:, 6:10].copy()
-despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
+despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
+# =========================
+# LIMPEZA DE VALORES
+# =========================
 for base in [receitas, despesas]:
+    base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
-    base["VALOR"] = limpar_valor(base["VALOR"])
     base.dropna(subset=["DATA"], inplace=True)
     base["ANO"] = base["DATA"].dt.year
     base["MES_NUM"] = base["DATA"].dt.month
@@ -136,18 +133,10 @@ resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
 
 # =========================
-# CONTROLE DE VISÃO
-# =========================
-expandir = st.toggle("🔎 Mostrar histórico completo", value=False)
-hoje = datetime.now()
-resumo_plot = resumo.copy() if expandir else resumo[(resumo["ANO"] > hoje.year) | ((resumo["ANO"] == hoje.year) & (resumo["MES_NUM"] >= hoje.month))]
-if resumo_plot.empty: resumo_plot = resumo.copy()
-
-# =========================
 # GRÁFICO PRINCIPAL
 # =========================
 st.subheader("📊 Balanço Financeiro")
-fig = px.bar(resumo_plot, x="MES_ANO", y=["RECEITA","DESPESA","SALDO"], barmode="group", text_auto=True)
+fig = px.bar(resumo, x="MES_ANO", y=["RECEITA","DESPESA","SALDO"], barmode="group", text_auto=True)
 fig.update_layout(height=420, margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
 fig.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
 fig.update_traces(selector=dict(name="RECEITA"), marker_color="#22c55e")
@@ -155,13 +144,12 @@ fig.update_traces(selector=dict(name="DESPESA"), marker_color="#ef4444")
 fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
 st.plotly_chart(fig, use_container_width=True)
 
-st.divider()
-
 # =========================
 # SIDEBAR
 # =========================
 st.sidebar.header("📆 Análise Mensal")
 resumo["CHAVE"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
+hoje = datetime.now()
 chave_atual = hoje.strftime("%b").lower() + f"/{hoje.year}"
 idx = resumo["CHAVE"].tolist().index(chave_atual) if chave_atual in resumo["CHAVE"].tolist() else 0
 mes_sel = st.sidebar.selectbox("Mês", resumo["CHAVE"].unique(), index=idx)
