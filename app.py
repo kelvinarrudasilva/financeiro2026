@@ -133,10 +133,41 @@ resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
 
 # =========================
+# CONTROLE DE VISÃO — BALANÇO FINANCEIRO
+# =========================
+expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
+hoje = datetime.now()
+
+if expandir:
+    # Mostra todo o ano corrente
+    resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
+else:
+    # Mostra mês atual + próximos 3 meses
+    meses_a_mostrar = []
+    for i in range(4):  # atual + 3
+        mes = hoje.month + i
+        ano = hoje.year
+        if mes > 12:
+            mes -= 12
+            ano += 1
+        meses_a_mostrar.append((ano, mes))
+    
+    resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
+
+if resumo_plot.empty:
+    resumo_plot = resumo.copy()
+
+# =========================
 # GRÁFICO PRINCIPAL
 # =========================
 st.subheader("📊 Balanço Financeiro")
-fig = px.bar(resumo, x="MES_ANO", y=["RECEITA","DESPESA","SALDO"], barmode="group", text_auto=True)
+fig = px.bar(
+    resumo_plot,
+    x="MES_ANO",
+    y=["RECEITA","DESPESA","SALDO"],
+    barmode="group",
+    text_auto=True
+)
 fig.update_layout(height=420, margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
 fig.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
 fig.update_traces(selector=dict(name="RECEITA"), marker_color="#22c55e")
@@ -149,7 +180,6 @@ st.plotly_chart(fig, use_container_width=True)
 # =========================
 st.sidebar.header("📆 Análise Mensal")
 resumo["CHAVE"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
-hoje = datetime.now()
 chave_atual = hoje.strftime("%b").lower() + f"/{hoje.year}"
 idx = resumo["CHAVE"].tolist().index(chave_atual) if chave_atual in resumo["CHAVE"].tolist() else 0
 mes_sel = st.sidebar.selectbox("Mês", resumo["CHAVE"].unique(), index=idx)
