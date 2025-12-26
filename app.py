@@ -93,4 +93,38 @@ if arquivo:
             template="plotly_dark",
             title="Evolução do Saldo"
         ),
-        use
+        use_container_width=True
+    )
+
+    # ================= DESPESAS POR CATEGORIA =================
+    st.subheader("🧾 Para onde vai seu dinheiro")
+
+    despesas_cat = despesas.groupby("NOME")["VALOR"].sum().reset_index()
+
+    st.plotly_chart(
+        px.pie(
+            despesas_cat,
+            names="NOME",
+            values="VALOR",
+            hole=0.45,
+            template="plotly_dark"
+        ),
+        use_container_width=True
+    )
+
+    # ================= ALERTAS =================
+    st.subheader("🚨 Alertas Financeiros")
+
+    meses_negativos = resumo[resumo["SALDO"] < 0]
+
+    if meses_negativos.empty:
+        st.success("Nenhum mês no vermelho. Disciplina afiada.")
+    else:
+        for _, row in meses_negativos.iterrows():
+            st.error(
+                f"No mês **{row['MÊS']}**, "
+                f"despesa maior que receita em R$ {abs(row['SALDO']):,.2f}"
+            )
+
+else:
+    st.info("Envie o arquivo Excel para iniciar o painel.")
