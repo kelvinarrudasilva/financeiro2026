@@ -2,139 +2,125 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# ---------------- CONFIGURAÇÃO DA PÁGINA ----------------
 st.set_page_config(
-    page_title="Dashboard Financeiro",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Painel Financeiro Pessoal",
+    page_icon="💰",
+    layout="wide"
 )
 
-# =====================
-# LEITURA DA PLANILHA
-# =====================
-arquivo = "VIRADA FINANCEIRA.xlsx"
+# ---------------- TEMA DARK ----------------
+st.markdown("""
+<style>
+body {
+    background-color: #0e1117;
+}
+</style>
+""", unsafe_allow_html=True)
 
-df_raw = pd.read_excel(
-    arquivo,
-    engine="openpyxl",
-    header=None
+st.title("💰 Painel Financeiro Pessoal")
+st.caption("Controle total. Visão clara. Decisão consciente.")
+
+# ---------------- UPLOAD DO ARQUIVO ----------------
+arquivo = st.file_uploader(
+    "📂 Envie seu arquivo financeiro (Excel)",
+    type=["xlsx"]
 )
 
-# =====================
-# RECEITAS
-# =====================
-receitas = df_raw.iloc[1:4, 1:5].copy()
-receitas.columns = ["Data", "Mes", "Descricao", "Valor"]
-receitas["Tipo"] = "Receita"
+if arquivo:
+    receitas = pd.read_excel(arquivo, sheet_name="Receitas")
+    despesas = pd.read_excel(arquivo, sheet_name="Despesas")
 
-# =====================
-# DESPESAS
-# =====================
-despesas = df_raw.iloc[1:6, 6:10].copy()
-despesas.columns = ["Data", "Mes", "Descricao", "Valor"]
-despesas["Tipo"] = "Despesa"
+    # Padronização
+    receitas["VALOR"] = pd.to_numeric(receitas["VALOR"])
+    despesas["VALOR"] = pd.to_numeric(despesas["VALOR"])
 
-# =====================
-# BASE FINAL
-# =====================
-df = pd.concat([receitas, despesas], ignore_index=True)
+    # ---------------- RESUMO MENSAL ----------------
+    resumo_receitas = receitas.groupby("MÊS")["VALOR"].sum().reset_index(name="RECEITA")
+    resumo_despesas = despesas.groupby("MÊS")["VALOR"].sum().reset_index(name="DESPESA")
 
-# Limpeza básica
-df = df.dropna(subset=["Valor", "Mes"])
+    resumo = pd.merge(
+        resumo_receitas,
+        resumo_despesas,
+        on="MÊS",
+        how="outer"
+    ).fillna(0)
 
-# Tratamento de data (CORREÇÃO DO ERRO)
-df["Data"] = pd.to_datetime(
-    df["Data"],
-    errors="coerce",
-    dayfirst=True
-)
+    resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
-df = df.dropna(subset=["Data"])
+    # ---------------- KPIs ----------------
+    col1, col2, col3 = st.columns(3)
 
-# Valor numérico
-df["Valor"] = (
-    df["Valor"]
-    .astype(str)
-    .str.replace(",", ".")
-    .astype(float)
-)
+    col1.metric(
+        "💵 Receita Total",
+        f"R$ {resumo['RECEITA'].sum():,.2f}"
+    )
 
-# =====================
-# SIDEBAR - FILTROS
-# =====================
-st.sidebar.title("📅 Filtros")
+    col2.metric(
+        "💸 Despesa Total",
+        f"R$ {resumo['DESPESA'].sum():,.2f}"
+    )
 
-meses = sorted(df["Mes"].astype(str).unique())
-mes_selecionado = st.sidebar.selectbox("Selecione o mês", meses)
+    col3.metric(
+        "⚖️ Saldo Geral",
+        f"R$ {resumo['SALDO'].sum():,.2f}"
+    )
 
-df_mes = df[df["Mes"] == mes_selecionado]
+    st.divider()
 
-# =====================
-# KPIs PRINCIPAIS
-# =====================
-receita_total = df_mes[df_mes["Tipo"] == "Receita"]["Valor"].sum()
-despesa_total = df_mes[df_mes["Tipo"] == "Despesa"]["Valor"].sum()
-saldo = receita_total - despesa_total
+    # ---------------- TABELA RESUMO ----------------
+    st.subheader("📊 Resumo Mensal")
+    st.dataframe(
+        resumo,
+        use_container_width=True
+    )
 
-c1, c2, c3 = st.columns(3)
-c1.metric("💰 Receitas", f"R$ {receita_total:,.2f}")
-c2.metric("💸 Despesas", f"R$ {despesa_total:,.2f}")
-c3.metric("📊 Saldo", f"R$ {saldo:,.2f}")
+    # ---------------- GRÁFICO RECEITA x DESPESA ----------------
+    fig_bar = px.bar(
+        resumo,
+        x="MÊS",
+        y=["RECEITA", "DESPESA"],
+        barmode="group",
+        title="Receita x Despesa por Mês",
+        template="plotly_dark"
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-st.divider()
+    # ---------------- GRÁFICO SALDO ----------------
+    fig_saldo = px.line(
+        resumo,
+        x="MÊS",
+        y="SALDO",
+        markers=True,
+        title="Evolução do Saldo Mensal",
+        template="plotly_dark"
+    )
+    st.plotly_chart(fig_saldo, use_container_width=True)
 
-# =====================
-# GRÁFICOS
-# =====================
-col1, col2 = st.columns(2)
+    # ---------------- DESPESAS POR CATEGORIA ----------------
+    st.subheader("🧾 Distribuição de Despesas")
 
-with col1:
+    despesas_categoria = despesas.groupby("NOME")["VALOR"].sum().reset_index()
+
     fig_pizza = px.pie(
-        df_mes,
-        names="Tipo",
-        values="Valor",
-        title="Receitas x Despesas"
+        despesas_categoria,
+        names="NOME",
+        values="VALOR",
+        hole=0.5,
+        template="plotly_dark"
     )
     st.plotly_chart(fig_pizza, use_container_width=True)
 
-with col2:
-    fig_barras = px.bar(
-        df_mes,
-        x="Descricao",
-        y="Valor",
-        color="Tipo",
-        title="Detalhamento do Mês"
-    )
-    st.plotly_chart(fig_barras, use_container_width=True)
+    # ---------------- ALERTAS INTELIGENTES ----------------
+    st.subheader("🚨 Alertas Financeiros")
 
-# =====================
-# VISÃO ANUAL
-# =====================
-st.divider()
-st.subheader("📆 Panorama Geral do Ano")
+    meses_negativos = resumo[resumo["SALDO"] < 0]
 
-df_ano = (
-    df.groupby(["Mes", "Tipo"], as_index=False)["Valor"]
-    .sum()
-)
+    if not meses_negativos.empty:
+        for _, row in meses_negativos.iterrows():
+            st.error(f"No mês **{row['MÊS']}** você gastou mais do que ganhou.")
+    else:
+        st.success("Todos os meses estão com saldo positivo. Excelente controle.")
 
-fig_ano = px.bar(
-    df_ano,
-    x="Mes",
-    y="Valor",
-    color="Tipo",
-    barmode="group",
-    title="Receitas e Despesas por Mês"
-)
-
-st.plotly_chart(fig_ano, use_container_width=True)
-
-# =====================
-# TABELA DETALHADA
-# =====================
-st.subheader("📋 Lançamentos do Mês")
-
-st.dataframe(
-    df_mes.sort_values("Data"),
-    use_container_width=True
-)
-
+else:
+    st.info("Envie o arquivo Excel para iniciar o painel.")
