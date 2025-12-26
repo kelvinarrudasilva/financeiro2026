@@ -12,31 +12,58 @@ st.set_page_config(
 # LEITURA DA PLANILHA
 # =====================
 arquivo = "VIRADA FINANCEIRA.xlsx"
-df_raw = pd.read_excel(arquivo, header=None)
 
+df_raw = pd.read_excel(
+    arquivo,
+    engine="openpyxl",
+    header=None
+)
+
+# =====================
 # RECEITAS
-receitas = df_raw.iloc[1:4, 1:5]
+# =====================
+receitas = df_raw.iloc[1:4, 1:5].copy()
 receitas.columns = ["Data", "Mes", "Descricao", "Valor"]
 receitas["Tipo"] = "Receita"
 
+# =====================
 # DESPESAS
-despesas = df_raw.iloc[1:6, 6:10]
+# =====================
+despesas = df_raw.iloc[1:6, 6:10].copy()
 despesas.columns = ["Data", "Mes", "Descricao", "Valor"]
 despesas["Tipo"] = "Despesa"
 
+# =====================
 # BASE FINAL
-df = pd.concat([receitas, despesas])
-df.dropna(inplace=True)
+# =====================
+df = pd.concat([receitas, despesas], ignore_index=True)
 
-df["Data"] = pd.to_datetime(df["Data"])
-df["Valor"] = df["Valor"].astype(float)
+# Limpeza básica
+df = df.dropna(subset=["Valor", "Mes"])
+
+# Tratamento de data (CORREÇÃO DO ERRO)
+df["Data"] = pd.to_datetime(
+    df["Data"],
+    errors="coerce",
+    dayfirst=True
+)
+
+df = df.dropna(subset=["Data"])
+
+# Valor numérico
+df["Valor"] = (
+    df["Valor"]
+    .astype(str)
+    .str.replace(",", ".")
+    .astype(float)
+)
 
 # =====================
 # SIDEBAR - FILTROS
 # =====================
 st.sidebar.title("📅 Filtros")
 
-meses = sorted(df["Mes"].unique())
+meses = sorted(df["Mes"].astype(str).unique())
 mes_selecionado = st.sidebar.selectbox("Selecione o mês", meses)
 
 df_mes = df[df["Mes"] == mes_selecionado]
@@ -85,7 +112,10 @@ with col2:
 st.divider()
 st.subheader("📆 Panorama Geral do Ano")
 
-df_ano = df.groupby(["Mes", "Tipo"])["Valor"].sum().reset_index()
+df_ano = (
+    df.groupby(["Mes", "Tipo"], as_index=False)["Valor"]
+    .sum()
+)
 
 fig_ano = px.bar(
     df_ano,
@@ -102,6 +132,7 @@ st.plotly_chart(fig_ano, use_container_width=True)
 # TABELA DETALHADA
 # =====================
 st.subheader("📋 Lançamentos do Mês")
+
 st.dataframe(
     df_mes.sort_values("Data"),
     use_container_width=True
