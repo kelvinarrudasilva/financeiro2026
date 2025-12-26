@@ -3,7 +3,13 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-st.set_page_config(page_title="🌑 Virada Financeira", layout="wide")
+# =========================
+# CONFIG
+# =========================
+st.set_page_config(
+    page_title="🌑 Virada Financeira",
+    layout="wide"
+)
 
 st.title("🌑 Virada Financeira")
 st.caption("O dinheiro sob a luz da consciência.")
@@ -28,12 +34,16 @@ def formato_real(v):
 # =========================
 # UPLOAD
 # =========================
-arquivo = st.file_uploader("📂 Envie sua planilha financeira", type=["xlsx"])
+arquivo = st.file_uploader(
+    "📂 Envie sua planilha financeira",
+    type=["xlsx"]
+)
+
 if not arquivo:
     st.stop()
 
 # =========================
-# LEITURA BRUTA
+# LEITURA BRUTA (1 ABA)
 # =========================
 df = pd.read_excel(arquivo)
 
@@ -92,9 +102,22 @@ fig_anual = px.bar(
     x="MES",
     y=["VALOR_RECEITA", "VALOR_DESPESA", "SALDO"],
     barmode="group",
-    color_discrete_sequence=["#2ecc71", "#e74c3c", "#27ae60"],
     labels={"value": "Valor (R$)", "MES": "Mês"},
     text_auto=True
+)
+
+# 🎨 CORES FIXAS POR COLUNA
+fig_anual.update_traces(
+    selector=dict(name="VALOR_RECEITA"),
+    marker_color="#2ecc71"  # verde receita
+)
+fig_anual.update_traces(
+    selector=dict(name="VALOR_DESPESA"),
+    marker_color="#e74c3c"  # vermelho despesa
+)
+fig_anual.update_traces(
+    selector=dict(name="SALDO"),
+    marker_color="#1abc9c"  # verde água saldo
 )
 
 fig_anual.update_traces(
@@ -123,14 +146,17 @@ rec_mes = receitas[receitas["MES"] == mes_sel]
 des_mes = despesas[despesas["MES"] == mes_sel]
 
 # =========================
-# DETALHAMENTO
+# DETALHAMENTO (PRIMEIRO)
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 c4, c5, c6 = st.columns(3)
 c4.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
 c5.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
-c6.metric("Saldo do Mês", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+c6.metric(
+    "Saldo do Mês",
+    formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum())
+)
 
 # =========================
 # GRÁFICOS MENSAIS
