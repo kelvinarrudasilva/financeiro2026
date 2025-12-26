@@ -237,18 +237,50 @@ d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
-# GRÁFICOS MENSAIS (MOBILE FIRST)
+# COMPOSIÇÃO DO MÊS (RESPONSIVO)
 # =========================
 st.subheader("📌 Composição do mês")
 
-if not rec_mes.empty:
-    st.plotly_chart(
-        px.pie(rec_mes, values="VALOR", names="DESCRICAO", hole=0.45),
-        use_container_width=True
-    )
+col_r, col_d = st.columns(2)
 
-if not des_mes.empty:
-    st.plotly_chart(
-        px.pie(des_mes, values="VALOR", names="DESCRICAO", hole=0.45),
-        use_container_width=True
-    )
+with col_r:
+    if not rec_mes.empty:
+        fig_r = px.pie(
+            rec_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💰 Receitas"
+        )
+        fig_r.update_traces(
+            texttemplate="R$ %{value:,.2f}",
+            textposition="inside"
+        )
+        fig_r.update_layout(
+            showlegend=True,
+            margin=dict(t=50, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig_r, use_container_width=True)
+    else:
+        st.info("Nenhuma receita no mês.")
+
+with col_d:
+    if not des_mes.empty:
+        fig_d = px.pie(
+            des_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💸 Despesas"
+        )
+        fig_d.update_traces(
+            texttemplate="R$ %{value:,.2f}",
+            textposition="inside"
+        )
+        fig_d.update_layout(
+            showlegend=True,
+            margin=dict(t=50, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig_d, use_container_width=True)
+    else:
+        st.info("Nenhuma despesa no mês.")
