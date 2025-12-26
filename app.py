@@ -96,7 +96,6 @@ def load_or_update_quote():
             except:
                 saved_date = ""
                 quote = ""
-        # Atualiza se a data mudou
         if saved_date != hoje_str:
             quote = get_portuguese_quote()
             with open(QUOTE_FILE, "w", encoding="utf-8") as f:
@@ -144,6 +143,10 @@ def limpar_valor(v):
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def gerar_cores(n):
+    cores = px.colors.qualitative.Vivid
+    return [cores[i % len(cores)] for i in range(n)]
+
 # =========================
 # LEITURA
 # =========================
@@ -158,13 +161,9 @@ except:
 # =========================
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
-
 despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-# =========================
-# LIMPEZA DE VALORES
-# =========================
 for base in [receitas, despesas]:
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
@@ -192,9 +191,10 @@ resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
+resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
 
 # =========================
-# CONTROLE DE VISÃO — BALANÇO FINANCEIRO
+# BALANÇO FINANCEIRO
 # =========================
 expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
 hoje = datetime.now()
@@ -234,19 +234,39 @@ st.plotly_chart(fig, use_container_width=True)
 # SIDEBAR
 # =========================
 st.sidebar.header("📆 Análise Mensal")
-resumo["CHAVE"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
 chave_atual = hoje.strftime("%b").lower() + f"/{hoje.year}"
-idx = resumo["CHAVE"].tolist().index(chave_atual) if chave_atual in resumo["CHAVE"].tolist() else 0
-mes_sel = st.sidebar.selectbox("Mês", resumo["CHAVE"].unique(), index=idx)
+mes_sel = st.sidebar.selectbox("Mês", resumo["MES_ANO"].unique(), index=list(resumo["MES_ANO"]).index(chave_atual))
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
+
+# =========================
+# DETALHAMENTO COM BOTÃO PRÓXIMO MÊS
+# =========================
+def avancar_mes(mes, ano):
+    datas = sorted(resumo["DATA_CHAVE"].unique())
+    for i, d in enumerate(datas):
+        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
+            indice = (i + 1) % len(datas)
+            nova_data = datas[indice]
+            return nova_data.strftime("%b").lower(), nova_data.year
+    return mes, ano
+
+col_titulo, col_botao = st.columns([8,1])
+with col_titulo:
+    st.subheader(f"📆 Detalhamento — {mes_sel}")
+with col_botao:
+    if st.button("➡ Próximo mês"):
+        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
+        mes_sel = f"{mes_txt}/{ano_sel}"
+        st.experimental_rerun()
+
+# Dados do mês
 rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt)]
 des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt)]
 
 # =========================
-# DETALHAMENTO
+# MÉTRICAS DETALHADAS
 # =========================
-st.subheader(f"📆 Detalhamento — {mes_sel}")
 d1, d2, d3 = st.columns(3)
 d1.metric("💰 Receitas", formato_real(rec_mes["VALOR"].sum()))
 d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
@@ -257,10 +277,6 @@ d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].s
 # =========================
 st.subheader("📌 Composição do mês")
 col_r, col_d = st.columns(2)
-
-def gerar_cores(n):
-    cores = px.colors.qualitative.Vivid
-    return [cores[i % len(cores)] for i in range(n)]
 
 with col_r:
     if not rec_mes.empty:
