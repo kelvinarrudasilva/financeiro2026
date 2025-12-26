@@ -93,11 +93,11 @@ except:
 # =========================
 # BASES
 # =========================
-# Receitas (colunas B:E, linha 2 é cabeçalho)
+# Receitas (colunas B:E)
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-# Despesas (colunas G:J, linha 2 é cabeçalho)
+# Despesas (colunas G:J)
 despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
@@ -139,12 +139,10 @@ expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
 hoje = datetime.now()
 
 if expandir:
-    # Mostra todo o ano corrente
     resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
 else:
-    # Mostra mês atual + próximos 3 meses
     meses_a_mostrar = []
-    for i in range(4):  # atual + 3
+    for i in range(4):  # atual + 3 meses
         mes = hoje.month + i
         ano = hoje.year
         if mes > 12:
@@ -198,22 +196,42 @@ d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
-# COMPOSIÇÃO DO MÊS
+# COMPOSIÇÃO DO MÊS COM NOME + VALOR
 # =========================
 st.subheader("📌 Composição do mês")
 col_r, col_d = st.columns(2)
+
 with col_r:
     if not rec_mes.empty:
-        fig_r = px.pie(rec_mes, values="VALOR", names="DESCRICAO", hole=0.55, title="💰 Receitas")
-        fig_r.update_traces(texttemplate="R$ %{value:,.2f}", textposition="inside")
+        fig_r = px.pie(
+            rec_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💰 Receitas"
+        )
+        fig_r.update_traces(
+            texttemplate="%{label}<br>R$ %{value:,.2f}",  # label + valor
+            textposition="inside"
+        )
         fig_r.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
         st.plotly_chart(fig_r, use_container_width=True)
     else:
         st.info("Nenhuma receita no mês.")
+
 with col_d:
     if not des_mes.empty:
-        fig_d = px.pie(des_mes, values="VALOR", names="DESCRICAO", hole=0.55, title="💸 Despesas")
-        fig_d.update_traces(texttemplate="R$ %{value:,.2f}", textposition="inside")
+        fig_d = px.pie(
+            des_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💸 Despesas"
+        )
+        fig_d.update_traces(
+            texttemplate="%{label}<br>R$ %{value:,.2f}",  # label + valor
+            textposition="inside"
+        )
         fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
         st.plotly_chart(fig_d, use_container_width=True)
     else:
