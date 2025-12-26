@@ -33,28 +33,30 @@ if not arquivo:
     st.stop()
 
 # =========================
-# LEITURA (1 ABA)
+# LEITURA BRUTA
 # =========================
 df = pd.read_excel(arquivo)
 
-df.columns = df.columns.str.upper().str.strip()
+# =========================
+# RECEITAS (COLUNAS ESQUERDA)
+# =========================
+receitas = df.iloc[1:, 1:5].copy()
+receitas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
 
-colunas_necessarias = {"DATA", "DESCRIÇÃO", "VALOR", "TIPO"}
-if not colunas_necessarias.issubset(df.columns):
-    st.error(
-        "❌ A planilha precisa ter as colunas:\n"
-        "- DATA\n- DESCRIÇÃO\n- VALOR\n- TIPO (RECEITA ou DESPESA)"
-    )
-    st.stop()
+# =========================
+# DESPESAS (COLUNAS DIREITA)
+# =========================
+despesas = df.iloc[1:, 6:10].copy()
+despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
 
-df["VALOR"] = limpar_valor(df["VALOR"])
-df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
-df = df.dropna(subset=["DATA"])
-df["MES"] = df["DATA"].dt.strftime("%b").str.lower()
-df["TIPO"] = df["TIPO"].str.upper().str.strip()
-
-receitas = df[df["TIPO"] == "RECEITA"]
-despesas = df[df["TIPO"] == "DESPESA"]
+# =========================
+# LIMPEZA
+# =========================
+for base in [receitas, despesas]:
+    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+    base["VALOR"] = limpar_valor(base["VALOR"])
+    base.dropna(subset=["DATA"], inplace=True)
+    base["MES"] = base["MES"].astype(str).str.lower().str.strip()
 
 # =========================
 # RESUMO ANUAL
@@ -121,17 +123,14 @@ rec_mes = receitas[receitas["MES"] == mes_sel]
 des_mes = despesas[despesas["MES"] == mes_sel]
 
 # =========================
-# DETALHAMENTO (PRIMEIRO)
+# DETALHAMENTO
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 c4, c5, c6 = st.columns(3)
 c4.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
 c5.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
-c6.metric(
-    "Saldo do Mês",
-    formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum())
-)
+c6.metric("Saldo do Mês", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
 # =========================
 # GRÁFICOS MENSAIS
@@ -140,30 +139,28 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.markdown("### 💰 Receitas do mês")
-    if not rec_mes.empty:
-        fig_r = px.pie(
-            rec_mes,
-            values="VALOR",
-            names="DESCRIÇÃO",
-            hole=0.45
-        )
-        fig_r.update_traces(
-            texttemplate="R$ %{value:,.2f}",
-            textposition="inside"
-        )
-        st.plotly_chart(fig_r, use_container_width=True, key="rec_mes")
+    fig_r = px.pie(
+        rec_mes,
+        values="VALOR",
+        names="DESCRICAO",
+        hole=0.45
+    )
+    fig_r.update_traces(
+        texttemplate="R$ %{value:,.2f}",
+        textposition="inside"
+    )
+    st.plotly_chart(fig_r, use_container_width=True, key="rec_mes")
 
 with g2:
     st.markdown("### 💸 Despesas do mês")
-    if not des_mes.empty:
-        fig_d = px.pie(
-            des_mes,
-            values="VALOR",
-            names="DESCRIÇÃO",
-            hole=0.45
-        )
-        fig_d.update_traces(
-            texttemplate="R$ %{value:,.2f}",
-            textposition="inside"
-        )
-        st.plotly_chart(fig_d, use_container_width=True, key="des_mes")
+    fig_d = px.pie(
+        des_mes,
+        values="VALOR",
+        names="DESCRICAO",
+        hole=0.45
+    )
+    fig_d.update_traces(
+        texttemplate="R$ %{value:,.2f}",
+        textposition="inside"
+    )
+    st.plotly_chart(fig_d, use_container_width=True, key="des_mes")
