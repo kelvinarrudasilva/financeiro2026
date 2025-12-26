@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---------------- CONFIGURAÇÃO ----------------
+# ================= CONFIGURAÇÃO DA PÁGINA =================
 st.set_page_config(
     page_title="Painel Financeiro Pessoal",
     page_icon="💰",
@@ -10,43 +10,41 @@ st.set_page_config(
 )
 
 st.title("💰 Painel Financeiro Pessoal")
-st.caption("Onde o dinheiro deixa de ser mistério.")
+st.caption("Ver o dinheiro com clareza muda decisões.")
 
+# ================= UPLOAD =================
 arquivo = st.file_uploader(
     "📂 Envie seu arquivo Excel financeiro",
     type=["xlsx"]
 )
 
+# ================= FUNÇÃO ROBUSTA DE LIMPEZA =================
+def limpar_valor(coluna):
+    coluna = coluna.astype(str)
+    coluna = coluna.str.replace(r"[^\d,.-]", "", regex=True)
+    coluna = coluna.str.replace(".", "", regex=False)
+    coluna = coluna.str.replace(",", ".", regex=False)
+    return pd.to_numeric(coluna, errors="coerce").fillna(0)
+
+# ================= APP =================
 if arquivo:
-    # Lê a primeira aba, seja qual for o nome
+    # Lê a PRIMEIRA aba (qualquer nome)
     df = pd.read_excel(arquivo, sheet_name=0)
 
-    # ---------------- RECEITAS (B:E) ----------------
+    # ---------- RECEITAS (B:E) ----------
     receitas = df.iloc[:, 1:5].copy()
     receitas.columns = ["DATA", "MÊS", "NOME", "VALOR"]
 
-    # ---------------- DESPESAS (G:J) ----------------
+    # ---------- DESPESAS (G:J) ----------
     despesas = df.iloc[:, 6:10].copy()
     despesas.columns = ["DATA", "MÊS", "NOME", "VALOR"]
 
-    # ---------------- LIMPEZA ----------------
+    # ---------- LIMPEZA ----------
     for tabela in [receitas, despesas]:
         tabela.dropna(how="all", inplace=True)
-       tabela["VALOR"] = (
-    tabela["VALOR"]
-    .astype(str)
-    .str.replace(r"[^\d,.-]", "", regex=True)  # remove tudo que não é número
-    .str.replace(".", "", regex=False)         # remove milhar
-    .str.replace(",", ".", regex=False)        # ajusta decimal
-)
+        tabela["VALOR"] = limpar_valor(tabela["VALOR"])
 
-tabela["VALOR"] = pd.to_numeric(
-    tabela["VALOR"],
-    errors="coerce"
-).fillna(0)
-
-
-    # ---------------- RESUMO MENSAL ----------------
+    # ---------- RESUMO MENSAL ----------
     resumo = (
         receitas.groupby("MÊS")["VALOR"].sum()
         .rename("RECEITA")
@@ -61,7 +59,7 @@ tabela["VALOR"] = pd.to_numeric(
 
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
-    # ---------------- KPIs ----------------
+    # ================= KPIs =================
     col1, col2, col3 = st.columns(3)
     col1.metric("💵 Receita Total", f"R$ {resumo['RECEITA'].sum():,.2f}")
     col2.metric("💸 Despesa Total", f"R$ {resumo['DESPESA'].sum():,.2f}")
@@ -69,11 +67,11 @@ tabela["VALOR"] = pd.to_numeric(
 
     st.divider()
 
-    # ---------------- TABELA ----------------
+    # ================= TABELA =================
     st.subheader("📊 Resumo Mensal")
     st.dataframe(resumo, use_container_width=True)
 
-    # ---------------- GRÁFICOS ----------------
+    # ================= GRÁFICOS =================
     st.plotly_chart(
         px.bar(
             resumo,
@@ -95,34 +93,4 @@ tabela["VALOR"] = pd.to_numeric(
             template="plotly_dark",
             title="Evolução do Saldo"
         ),
-        use_container_width=True
-    )
-
-    st.subheader("🧾 Distribuição das Despesas")
-
-    despesas_cat = despesas.groupby("NOME")["VALOR"].sum().reset_index()
-
-    st.plotly_chart(
-        px.pie(
-            despesas_cat,
-            names="NOME",
-            values="VALOR",
-            hole=0.45,
-            template="plotly_dark"
-        ),
-        use_container_width=True
-    )
-
-    # ---------------- ALERTAS ----------------
-    st.subheader("🚨 Alertas Financeiros")
-
-    meses_vermelhos = resumo[resumo["SALDO"] < 0]
-
-    if meses_vermelhos.empty:
-        st.success("Nenhum mês no vermelho. Disciplina afiada.")
-    else:
-        for _, row in meses_vermelhos.iterrows():
-            st.error(f"No mês **{row['MÊS']}**, você gastou mais do que ganhou.")
-
-else:
-    st.info("Envie o arquivo Excel para iniciar o painel.")
+        use
