@@ -32,14 +32,19 @@ if arquivo:
     # ---------------- LIMPEZA ----------------
     for tabela in [receitas, despesas]:
         tabela.dropna(how="all", inplace=True)
-        tabela["VALOR"] = (
-            tabela["VALOR"]
-            .astype(str)
-            .str.replace("R$", "", regex=False)
-            .str.replace(".", "", regex=False)
-            .str.replace(",", ".", regex=False)
-            .astype(float)
-        )
+       tabela["VALOR"] = (
+    tabela["VALOR"]
+    .astype(str)
+    .str.replace(r"[^\d,.-]", "", regex=True)  # remove tudo que não é número
+    .str.replace(".", "", regex=False)         # remove milhar
+    .str.replace(",", ".", regex=False)        # ajusta decimal
+)
+
+tabela["VALOR"] = pd.to_numeric(
+    tabela["VALOR"],
+    errors="coerce"
+).fillna(0)
+
 
     # ---------------- RESUMO MENSAL ----------------
     resumo = (
