@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
 # ================= CONFIG =================
 st.set_page_config(
@@ -54,13 +55,13 @@ if arquivo:
     des.rename(columns={"VALOR": "DESPESA"}, inplace=True)
 
     resumo = pd.merge(rec, des, on="MES", how="outer").fillna(0)
-
     resumo["RECEITA"] = pd.to_numeric(resumo["RECEITA"], errors="coerce").fillna(0)
     resumo["DESPESA"] = pd.to_numeric(resumo["DESPESA"], errors="coerce").fillna(0)
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
     ordem = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
-    resumo["ordem"] = resumo["MES"].str.lower().map({m:i for i,m in enumerate(ordem)})
+    mapa_ordem = {m:i for i,m in enumerate(ordem)}
+    resumo["ordem"] = resumo["MES"].str.lower().map(mapa_ordem)
     resumo = resumo.sort_values("ordem").drop(columns="ordem")
 
     # ================= KPIs =================
@@ -88,33 +89,26 @@ if arquivo:
         }
     )
 
-    fig_bar.update_traces(
-        textposition="inside",
-        insidetextanchor="middle"
-    )
-
-    fig_bar.update_yaxes(
-        tickprefix="R$ ",
-        tickformat=",.2f"
-    )
-
-    fig_bar.update_layout(
-        uniformtext_minsize=10,
-        uniformtext_mode="hide"
-    )
+    fig_bar.update_traces(textposition="inside", insidetextanchor="middle")
+    fig_bar.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+    fig_bar.update_layout(uniformtext_minsize=10, uniformtext_mode="hide")
 
     st.plotly_chart(fig_bar, use_container_width=True, key="grafico_anual")
 
-    # ================= SIDEBAR — ANÁLISE MENSAL =================
+    # ================= SIDEBAR — MÊS =================
     st.sidebar.title("🔎 Análise Mensal")
 
-    meses = sorted(
-        set(receitas["MES"].unique()).union(despesas["MES"].unique())
-    )
+    meses = list(dict.fromkeys(
+        list(receitas["MES"].unique()) + list(despesas["MES"].unique())
+    ))
+
+    mes_atual = ordem[datetime.now().month - 1]
+    mes_atual_index = meses.index(mes_atual) if mes_atual in meses else 0
 
     mes_sel = st.sidebar.selectbox(
         "Selecione o mês",
-        meses
+        meses,
+        index=mes_atual_index
     )
 
     rec_mes = receitas[receitas["MES"] == mes_sel]
@@ -140,7 +134,7 @@ if arquivo:
             )
             fig_r.update_traces(textposition="inside")
             fig_r.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_r, use_container_width=True, key="grafico_receitas_mes")
+            st.plotly_chart(fig_r, use_container_width=True, key="grafico_rec_mes")
 
     with col2:
         st.markdown("### 💸 Despesas do mês")
@@ -157,21 +151,20 @@ if arquivo:
             )
             fig_d.update_traces(textposition="inside")
             fig_d.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_d, use_container_width=True, key="grafico_despesas_mes")
+            st.plotly_chart(fig_d, use_container_width=True, key="grafico_des_mes")
 
-    # ================= FECHAMENTO MENSAL =================
+    # ================= FECHAMENTO =================
     st.subheader("📋 Fechamento do Mês")
+
+    total_rec = float(rec_mes["VALOR"].sum())
+    total_des = float(des_mes["VALOR"].sum())
+    saldo_mes = total_rec - total_des
 
     fechamento = pd.DataFrame({
         "Tipo": ["Receitas", "Despesas", "Saldo"],
-        "Valor": [
-            rec_mes["VALOR"].sum(),
-            des_mes["VALOR"].sum(),
-            rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()
-        ]
+        "Valor": [brl(total_rec), brl(total_des), brl(saldo_mes)]
     })
 
-    fechamento["Valor"] = fechamento["Valor"].apply(brl)
     st.table(fechamento)
 
 else:
