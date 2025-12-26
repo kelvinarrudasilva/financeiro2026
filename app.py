@@ -25,13 +25,6 @@ def limpar_valor(col):
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def localizar_aba(planilha, palavras):
-    for aba in planilha.sheet_names:
-        nome = aba.lower()
-        if any(p in nome for p in palavras):
-            return aba
-    return None
-
 # =========================
 # UPLOAD
 # =========================
@@ -39,35 +32,29 @@ arquivo = st.file_uploader("📂 Envie sua planilha financeira", type=["xlsx"])
 if not arquivo:
     st.stop()
 
-xls = pd.ExcelFile(arquivo)
+# =========================
+# LEITURA (1 ABA)
+# =========================
+df = pd.read_excel(arquivo)
 
-aba_receitas = localizar_aba(xls, ["receita"])
-aba_despesas = localizar_aba(xls, ["despesa"])
+df.columns = df.columns.str.upper().str.strip()
 
-if not aba_receitas or not aba_despesas:
+colunas_necessarias = {"DATA", "DESCRIÇÃO", "VALOR", "TIPO"}
+if not colunas_necessarias.issubset(df.columns):
     st.error(
-        "❌ Não encontrei abas de RECEITAS e DESPESAS.\n\n"
-        "👉 Verifique se o nome das abas contém as palavras:\n"
-        "- receita\n"
-        "- despesa"
+        "❌ A planilha precisa ter as colunas:\n"
+        "- DATA\n- DESCRIÇÃO\n- VALOR\n- TIPO (RECEITA ou DESPESA)"
     )
     st.stop()
 
-# =========================
-# LEITURA
-# =========================
-receitas = pd.read_excel(xls, sheet_name=aba_receitas)
-despesas = pd.read_excel(xls, sheet_name=aba_despesas)
+df["VALOR"] = limpar_valor(df["VALOR"])
+df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
+df = df.dropna(subset=["DATA"])
+df["MES"] = df["DATA"].dt.strftime("%b").str.lower()
+df["TIPO"] = df["TIPO"].str.upper().str.strip()
 
-# =========================
-# PADRONIZAÇÃO
-# =========================
-for df in [receitas, despesas]:
-    df.columns = df.columns.str.upper().str.strip()
-    df["VALOR"] = limpar_valor(df["VALOR"])
-    df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
-    df = df.dropna(subset=["DATA"])
-    df["MES"] = df["DATA"].dt.strftime("%b").str.lower()
+receitas = df[df["TIPO"] == "RECEITA"]
+despesas = df[df["TIPO"] == "DESPESA"]
 
 # =========================
 # RESUMO ANUAL
@@ -103,9 +90,9 @@ fig_anual = px.bar(
     x="MES",
     y=["VALOR_RECEITA", "VALOR_DESPESA", "SALDO"],
     barmode="group",
-    text_auto=True,
     color_discrete_sequence=["#2ecc71", "#e74c3c", "#27ae60"],
-    labels={"value": "Valor (R$)", "MES": "Mês"}
+    labels={"value": "Valor (R$)", "MES": "Mês"},
+    text_auto=True
 )
 
 fig_anual.update_traces(
@@ -134,14 +121,17 @@ rec_mes = receitas[receitas["MES"] == mes_sel]
 des_mes = despesas[despesas["MES"] == mes_sel]
 
 # =========================
-# DETALHAMENTO
+# DETALHAMENTO (PRIMEIRO)
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 c4, c5, c6 = st.columns(3)
 c4.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
 c5.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
-c6.metric("Saldo do Mês", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+c6.metric(
+    "Saldo do Mês",
+    formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum())
+)
 
 # =========================
 # GRÁFICOS MENSAIS
@@ -154,10 +144,13 @@ with g1:
         fig_r = px.pie(
             rec_mes,
             values="VALOR",
-            names="DESCRICAO",
+            names="DESCRIÇÃO",
             hole=0.45
         )
-        fig_r.update_traces(texttemplate="R$ %{value:,.2f}", textposition="inside")
+        fig_r.update_traces(
+            texttemplate="R$ %{value:,.2f}",
+            textposition="inside"
+        )
         st.plotly_chart(fig_r, use_container_width=True, key="rec_mes")
 
 with g2:
@@ -166,8 +159,11 @@ with g2:
         fig_d = px.pie(
             des_mes,
             values="VALOR",
-            names="DESCRICAO",
+            names="DESCRIÇÃO",
             hole=0.45
         )
-        fig_d.update_traces(texttemplate="R$ %{value:,.2f}", textposition="inside")
+        fig_d.update_traces(
+            texttemplate="R$ %{value:,.2f}",
+            textposition="inside"
+        )
         st.plotly_chart(fig_d, use_container_width=True, key="des_mes")
