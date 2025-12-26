@@ -7,7 +7,7 @@ import random
 import os
 
 # =========================
-# CONFIG GERAL
+# CONFIGURAÇÃO GERAL
 # =========================
 st.set_page_config(
     page_title="🌑 Virada Financeira",
@@ -148,7 +148,7 @@ def gerar_cores(n):
     return [cores[i % len(cores)] for i in range(n)]
 
 # =========================
-# LEITURA
+# LEITURA PLANILHA
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
@@ -242,17 +242,17 @@ if "mes_sel" not in st.session_state:
 st.sidebar.header("📆 Análise Mensal")
 meses_unicos = resumo["MES_ANO"].unique()
 try:
-    idx = list(meses_unicos).index(st.session_state["mes_sel"])
+    idx = list(meses_unicos).tolist().index(st.session_state["mes_sel"])
 except ValueError:
     idx = 0
 
-mes_sel = st.sidebar.selectbox("Mês", meses_unicos, index=idx)
+mes_sel = st.sidebar.selectbox("Mês", meses_unicos, index=idx, key="mes_sel_select")
 st.session_state["mes_sel"] = mes_sel
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# BOTÃO PRÓXIMO MÊS
+# BOTÃO PRÓXIMO MÊS SEM ERRO DE RERUN
 # =========================
 def avancar_mes(mes, ano):
     datas = sorted(resumo["DATA_CHAVE"].unique())
@@ -270,7 +270,6 @@ with col_botao:
     if st.button("➡ Próximo mês"):
         mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
         st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
-        st.experimental_rerun()
 
 # =========================
 # DADOS DO MÊS
