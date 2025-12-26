@@ -63,7 +63,7 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA DIÁRIA COM ARQUIVO LOCAL
+# FRASE MOTIVADORA DIÁRIA
 # =========================
 FRASES_FALLBACK = [
     "Grandes conquistas exigem dedicação.",
@@ -169,4 +169,157 @@ for base in [receitas, despesas]:
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
     base.dropna(subset=["DATA"], inplace=True)
     base["ANO"] = base["DATA"].dt.year
-    base["MES_NUM_]()
+    base["MES_NUM"] = base["DATA"].dt.month
+    base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
+
+# =========================
+# MÉTRICAS PRINCIPAIS
+# =========================
+st.subheader("📌 Visão Geral")
+c1, c2, c3 = st.columns(3)
+c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
+c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
+c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
+st.divider()
+
+# =========================
+# RESUMO MENSAL
+# =========================
+rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"RECEITA"})
+des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"DESPESA"})
+resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
+resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
+resumo = resumo.sort_values(["ANO","MES_NUM"])
+resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
+resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
+
+# =========================
+# BALANÇO FINANCEIRO
+# =========================
+expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
+hoje = datetime.now()
+
+if expandir:
+    resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
+else:
+    meses_a_mostrar = []
+    for i in range(4):
+        mes = hoje.month + i
+        ano = hoje.year
+        if mes > 12:
+            mes -= 12
+            ano += 1
+        meses_a_mostrar.append((ano, mes))
+    resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
+
+if resumo_plot.empty:
+    resumo_plot = resumo.copy()
+
+st.subheader("📊 Balanço Financeiro")
+fig = px.bar(
+    resumo_plot,
+    x="MES_ANO",
+    y=["RECEITA","DESPESA","SALDO"],
+    barmode="group",
+    text_auto=True
+)
+fig.update_layout(height=420, margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
+fig.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
+fig.update_traces(selector=dict(name="RECEITA"), marker_color="#22c55e")
+fig.update_traces(selector=dict(name="DESPESA"), marker_color="#ef4444")
+fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# SESSION_STATE PARA MÊS SELECIONADO
+# =========================
+if "mes_sel" not in st.session_state:
+    st.session_state["mes_sel"] = hoje.strftime("%b").lower() + f"/{hoje.year}"
+
+# =========================
+# SIDEBAR
+# =========================
+st.sidebar.header("📆 Análise Mensal")
+meses_unicos = resumo["MES_ANO"].unique()
+try:
+    idx = list(meses_unicos).tolist().index(st.session_state["mes_sel"])
+except ValueError:
+    idx = 0
+
+mes_sel = st.sidebar.selectbox("Mês", meses_unicos, index=idx)
+st.session_state["mes_sel"] = mes_sel
+mes_txt, ano_sel = mes_sel.split("/")
+ano_sel = int(ano_sel)
+
+# =========================
+# BOTÃO PRÓXIMO MÊS
+# =========================
+def avancar_mes(mes, ano):
+    datas = sorted(resumo["DATA_CHAVE"].unique())
+    for i, d in enumerate(datas):
+        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
+            indice = (i + 1) % len(datas)
+            nova_data = datas[indice]
+            return nova_data.strftime("%b").lower(), nova_data.year
+    return mes, ano
+
+col_titulo, col_botao = st.columns([8,1])
+with col_titulo:
+    st.subheader(f"📆 Detalhamento — {st.session_state['mes_sel']}")
+with col_botao:
+    if st.button("➡ Próximo mês"):
+        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
+        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
+        st.experimental_rerun()
+
+# =========================
+# DADOS DO MÊS
+# =========================
+rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt)]
+des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt)]
+
+# =========================
+# MÉTRICAS DETALHADAS
+# =========================
+d1, d2, d3 = st.columns(3)
+d1.metric("💰 Receitas", formato_real(rec_mes["VALOR"].sum()))
+d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
+d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
+
+# =========================
+# COMPOSIÇÃO DO MÊS
+# =========================
+st.subheader("📌 Composição do mês")
+col_r, col_d = st.columns(2)
+
+with col_r:
+    if not rec_mes.empty:
+        fig_r = px.pie(
+            rec_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💰 Receitas",
+            color_discrete_sequence=gerar_cores(len(rec_mes))
+        )
+        fig_r.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
+        fig_r.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
+        st.plotly_chart(fig_r, use_container_width=True)
+    else:
+        st.info("Nenhuma receita no mês.")
+
+with col_d:
+    if not des_mes.empty:
+        fig_d = px.pie(
+            des_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💸 Despesas",
+            color_discrete_sequence=gerar_cores(len(des_mes))
+        )
+        fig_d.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
+        fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
+        st.plotly_chart(fig_d, use_container_width=True)
+    else:
+        st.info("Nenhuma despesa no mês.")
