@@ -242,7 +242,7 @@ if "mes_sel" not in st.session_state:
 st.sidebar.header("📆 Análise Mensal")
 meses_unicos = resumo["MES_ANO"].unique()
 try:
-    idx = list(meses_unicos).tolist().index(st.session_state["mes_sel"])
+    idx = list(meses_unicos).index(st.session_state["mes_sel"])
 except ValueError:
     idx = 0
 
