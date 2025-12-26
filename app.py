@@ -43,18 +43,18 @@ if not arquivo:
     st.stop()
 
 # =========================
-# LEITURA BRUTA (1 ABA)
+# LEITURA
 # =========================
 df = pd.read_excel(arquivo)
 
 # =========================
-# RECEITAS (COLUNAS ESQUERDA)
+# RECEITAS
 # =========================
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
 
 # =========================
-# DESPESAS (COLUNAS DIREITA)
+# DESPESAS
 # =========================
 despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
@@ -66,10 +66,10 @@ for base in [receitas, despesas]:
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
     base["VALOR"] = limpar_valor(base["VALOR"])
     base.dropna(subset=["DATA"], inplace=True)
-    base["MES"] = base["MES"].astype(str).str.lower().str.strip()
+    base["MES"] = base["MES"].astype(str).str.lower().str.strip().str[:3]
 
 # =========================
-# RESUMO ANUAL
+# RESUMO GERAL
 # =========================
 total_receita = receitas["VALOR"].sum()
 total_despesa = despesas["VALOR"].sum()
@@ -97,8 +97,32 @@ resumo = pd.merge(
 
 resumo["SALDO"] = resumo["VALOR_RECEITA"] - resumo["VALOR_DESPESA"]
 
+# =========================
+# CONTROLE DE MESES
+# =========================
+ordem_meses = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
+
+resumo["ordem"] = resumo["MES"].apply(
+    lambda x: ordem_meses.index(x) if x in ordem_meses else -1
+)
+resumo = resumo.sort_values("ordem")
+
+mes_atual = datetime.now().strftime("%b").lower()[:3]
+idx_atual = ordem_meses.index(mes_atual) if mes_atual in ordem_meses else 0
+
+expandir = st.toggle("🔎 EXPANDIR TUDO", value=False)
+
+if expandir:
+    resumo_plot = resumo.copy()
+else:
+    meses_visiveis = ordem_meses[idx_atual:idx_atual + 4]
+    resumo_plot = resumo[resumo["MES"].isin(meses_visiveis)]
+
+# =========================
+# GRÁFICO ANUAL
+# =========================
 fig_anual = px.bar(
-    resumo,
+    resumo_plot,
     x="MES",
     y=["VALOR_RECEITA", "VALOR_DESPESA", "SALDO"],
     barmode="group",
@@ -106,18 +130,17 @@ fig_anual = px.bar(
     text_auto=True
 )
 
-# 🎨 CORES FIXAS POR COLUNA
 fig_anual.update_traces(
     selector=dict(name="VALOR_RECEITA"),
-    marker_color="#2ecc71"  # verde receita
+    marker_color="#2ecc71"
 )
 fig_anual.update_traces(
     selector=dict(name="VALOR_DESPESA"),
-    marker_color="#e74c3c"  # vermelho despesa
+    marker_color="#e74c3c"
 )
 fig_anual.update_traces(
     selector=dict(name="SALDO"),
-    marker_color="#1abc9c"  # verde água saldo
+    marker_color="#1abc9c"
 )
 
 fig_anual.update_traces(
@@ -132,8 +155,7 @@ st.plotly_chart(fig_anual, use_container_width=True)
 # =========================
 st.sidebar.header("🔎 Análise Mensal Detalhada")
 
-meses = sorted(resumo["MES"].unique().tolist())
-mes_atual = datetime.now().strftime("%b").lower()
+meses = resumo["MES"].unique().tolist()
 mes_default = meses.index(mes_atual) if mes_atual in meses else 0
 
 mes_sel = st.sidebar.selectbox(
@@ -146,17 +168,14 @@ rec_mes = receitas[receitas["MES"] == mes_sel]
 des_mes = despesas[despesas["MES"] == mes_sel]
 
 # =========================
-# DETALHAMENTO (PRIMEIRO)
+# DETALHAMENTO
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 c4, c5, c6 = st.columns(3)
 c4.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
 c5.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
-c6.metric(
-    "Saldo do Mês",
-    formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum())
-)
+c6.metric("Saldo do Mês", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
 # =========================
 # GRÁFICOS MENSAIS
@@ -165,28 +184,22 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.markdown("### 💰 Receitas do mês")
-    fig_r = px.pie(
+    fig_r = px.bar(
         rec_mes,
-        values="VALOR",
-        names="DESCRICAO",
-        hole=0.45
+        x="DESCRICAO",
+        y="VALOR",
+        text_auto=True
     )
-    fig_r.update_traces(
-        texttemplate="R$ %{value:,.2f}",
-        textposition="inside"
-    )
-    st.plotly_chart(fig_r, use_container_width=True, key="rec_mes")
+    fig_r.update_traces(marker_color="#2ecc71", texttemplate="R$ %{y:,.2f}")
+    st.plotly_chart(fig_r, use_container_width=True)
 
 with g2:
     st.markdown("### 💸 Despesas do mês")
-    fig_d = px.pie(
+    fig_d = px.bar(
         des_mes,
-        values="VALOR",
-        names="DESCRICAO",
-        hole=0.45
+        x="DESCRICAO",
+        y="VALOR",
+        text_auto=True
     )
-    fig_d.update_traces(
-        texttemplate="R$ %{value:,.2f}",
-        textposition="inside"
-    )
-    st.plotly_chart(fig_d, use_container_width=True, key="des_mes")
+    fig_d.update_traces(marker_color="#e74c3c", texttemplate="R$ %{y:,.2f}")
+    st.plotly_chart(fig_d, use_container_width=True)
