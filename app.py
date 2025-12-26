@@ -40,7 +40,6 @@ if arquivo:
     despesas = df.iloc[:, 6:10].copy()
     despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
 
-    # ---------- LIMPEZA ----------
     for t in [receitas, despesas]:
         t.dropna(how="all", inplace=True)
         t["MES"] = t["MES"].astype(str).str.strip()
@@ -48,23 +47,18 @@ if arquivo:
         t["VALOR"] = limpar_valor(t["VALOR"])
 
     # ================= RESUMO ANUAL =================
-    rec_anual = receitas.groupby("MES", as_index=False)["VALOR"].sum()
-    rec_anual["VALOR"] = pd.to_numeric(rec_anual["VALOR"], errors="coerce").fillna(0)
-    rec_anual.rename(columns={"VALOR": "RECEITA"}, inplace=True)
+    rec = receitas.groupby("MES", as_index=False)["VALOR"].sum()
+    des = despesas.groupby("MES", as_index=False)["VALOR"].sum()
 
-    des_anual = despesas.groupby("MES", as_index=False)["VALOR"].sum()
-    des_anual["VALOR"] = pd.to_numeric(des_anual["VALOR"], errors="coerce").fillna(0)
-    des_anual.rename(columns={"VALOR": "DESPESA"}, inplace=True)
+    rec.rename(columns={"VALOR": "RECEITA"}, inplace=True)
+    des.rename(columns={"VALOR": "DESPESA"}, inplace=True)
 
-    resumo = pd.merge(rec_anual, des_anual, on="MES", how="outer").fillna(0)
+    resumo = pd.merge(rec, des, on="MES", how="outer").fillna(0)
 
-    # 🔒 CONVERSÃO FINAL (AQUI ESTÁ O SEGREDO)
     resumo["RECEITA"] = pd.to_numeric(resumo["RECEITA"], errors="coerce").fillna(0)
     resumo["DESPESA"] = pd.to_numeric(resumo["DESPESA"], errors="coerce").fillna(0)
-
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
-    # ---------- ORDEM DOS MESES ----------
     ordem = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
     resumo["ordem"] = resumo["MES"].str.lower().map({m:i for i,m in enumerate(ordem)})
     resumo = resumo.sort_values("ordem").drop(columns="ordem")
@@ -78,15 +72,20 @@ if arquivo:
     st.divider()
 
     # ================= GRÁFICO ANUAL =================
-    st.subheader("📊 Balanço Anual — Receita x Despesa")
+    st.subheader("📊 Balanço Anual — Receita x Despesa x Saldo")
 
     fig_bar = px.bar(
         resumo,
         x="MES",
-        y=["RECEITA", "DESPESA"],
+        y=["RECEITA", "DESPESA", "SALDO"],
         barmode="group",
         template="plotly_dark",
-        text_auto=".2f"
+        text_auto=".2f",
+        color_discrete_map={
+            "RECEITA": "#1f77b4",
+            "DESPESA": "#d62728",
+            "SALDO": "#2ecc71"
+        }
     )
 
     fig_bar.update_traces(
@@ -104,62 +103,66 @@ if arquivo:
         uniformtext_mode="hide"
     )
 
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True, key="grafico_anual")
 
-    st.divider()
-
-    # ================= FILTRO MENSAL =================
-    st.subheader("🔎 Análise Mensal Detalhada")
+    # ================= SIDEBAR — ANÁLISE MENSAL =================
+    st.sidebar.title("🔎 Análise Mensal")
 
     meses = sorted(
         set(receitas["MES"].unique()).union(despesas["MES"].unique())
     )
 
-    mes_sel = st.selectbox("Selecione o mês", meses)
+    mes_sel = st.sidebar.selectbox(
+        "Selecione o mês",
+        meses
+    )
 
     rec_mes = receitas[receitas["MES"] == mes_sel]
     des_mes = despesas[despesas["MES"] == mes_sel]
 
+    st.divider()
+    st.subheader(f"📆 Detalhamento — {mes_sel}")
+
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown(f"### 💰 Receitas — {mes_sel}")
+        st.markdown("### 💰 Receitas do mês")
         if rec_mes.empty:
-            st.info("Nenhuma receita neste mês.")
+            st.info("Nenhuma receita.")
         else:
             fig_r = px.bar(
                 rec_mes,
                 x="DESCRICAO",
                 y="VALOR",
                 template="plotly_dark",
-                text_auto=".2f"
+                text_auto=".2f",
+                color_discrete_sequence=["#1f77b4"]
             )
             fig_r.update_traces(textposition="inside")
             fig_r.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_r, use_container_width=True)
+            st.plotly_chart(fig_r, use_container_width=True, key="grafico_receitas_mes")
 
     with col2:
-        st.markdown(f"### 💸 Despesas — {mes_sel}")
+        st.markdown("### 💸 Despesas do mês")
         if des_mes.empty:
-            st.info("Nenhuma despesa neste mês.")
+            st.info("Nenhuma despesa.")
         else:
             fig_d = px.bar(
                 des_mes,
                 x="DESCRICAO",
                 y="VALOR",
                 template="plotly_dark",
-                text_auto=".2f"
+                text_auto=".2f",
+                color_discrete_sequence=["#d62728"]
             )
             fig_d.update_traces(textposition="inside")
             fig_d.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_d, use_container_width=True)
+            st.plotly_chart(fig_d, use_container_width=True, key="grafico_despesas_mes")
 
-    st.divider()
-
-    # ================= TABELA MENSAL =================
+    # ================= FECHAMENTO MENSAL =================
     st.subheader("📋 Fechamento do Mês")
 
-    resumo_mes = pd.DataFrame({
+    fechamento = pd.DataFrame({
         "Tipo": ["Receitas", "Despesas", "Saldo"],
         "Valor": [
             rec_mes["VALOR"].sum(),
@@ -168,8 +171,8 @@ if arquivo:
         ]
     })
 
-    resumo_mes["Valor"] = resumo_mes["Valor"].apply(brl)
-    st.table(resumo_mes)
+    fechamento["Valor"] = fechamento["Valor"].apply(brl)
+    st.table(fechamento)
 
 else:
     st.info("Envie o arquivo **VIRADA FINANCEIRA - Copia.xlsx** para iniciar.")
