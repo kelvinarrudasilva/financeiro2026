@@ -190,7 +190,7 @@ des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum()
 resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
-resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
+resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
 
 # =========================
@@ -234,13 +234,20 @@ st.plotly_chart(fig, use_container_width=True)
 # SIDEBAR
 # =========================
 st.sidebar.header("📆 Análise Mensal")
+
 chave_atual = hoje.strftime("%b").lower() + f"/{hoje.year}"
-mes_sel = st.sidebar.selectbox("Mês", resumo["MES_ANO"].unique(), index=list(resumo["MES_ANO"]).index(chave_atual))
+meses_unicos = resumo["MES_ANO"].unique()
+try:
+    idx = list(meses_unicos).index(chave_atual)
+except ValueError:
+    idx = 0
+
+mes_sel = st.sidebar.selectbox("Mês", meses_unicos, index=idx)
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# DETALHAMENTO COM BOTÃO PRÓXIMO MÊS
+# FUNÇÃO BOTÃO PRÓXIMO MÊS
 # =========================
 def avancar_mes(mes, ano):
     datas = sorted(resumo["DATA_CHAVE"].unique())
@@ -251,6 +258,9 @@ def avancar_mes(mes, ano):
             return nova_data.strftime("%b").lower(), nova_data.year
     return mes, ano
 
+# =========================
+# DETALHAMENTO COM BOTÃO
+# =========================
 col_titulo, col_botao = st.columns([8,1])
 with col_titulo:
     st.subheader(f"📆 Detalhamento — {mes_sel}")
