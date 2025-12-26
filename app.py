@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("🌑 Virada Financeira")
-st.caption("Visão anual para decisões grandes. Zoom mensal para decisões certas.")
+st.caption("O dinheiro sob a luz da consciência.")
 
 # ================= FUNÇÕES =================
 def limpar_valor(col):
@@ -40,6 +40,7 @@ if arquivo:
     despesas = df.iloc[:, 6:10].copy()
     despesas.columns = ["DATA", "MES", "DESCRICAO", "VALOR"]
 
+    # ---------- LIMPEZA ----------
     for t in [receitas, despesas]:
         t.dropna(how="all", inplace=True)
         t["MES"] = t["MES"].astype(str).str.strip()
@@ -48,14 +49,22 @@ if arquivo:
 
     # ================= RESUMO ANUAL =================
     rec_anual = receitas.groupby("MES", as_index=False)["VALOR"].sum()
+    rec_anual["VALOR"] = pd.to_numeric(rec_anual["VALOR"], errors="coerce").fillna(0)
     rec_anual.rename(columns={"VALOR": "RECEITA"}, inplace=True)
 
     des_anual = despesas.groupby("MES", as_index=False)["VALOR"].sum()
+    des_anual["VALOR"] = pd.to_numeric(des_anual["VALOR"], errors="coerce").fillna(0)
     des_anual.rename(columns={"VALOR": "DESPESA"}, inplace=True)
 
     resumo = pd.merge(rec_anual, des_anual, on="MES", how="outer").fillna(0)
+
+    # 🔒 CONVERSÃO FINAL (AQUI ESTÁ O SEGREDO)
+    resumo["RECEITA"] = pd.to_numeric(resumo["RECEITA"], errors="coerce").fillna(0)
+    resumo["DESPESA"] = pd.to_numeric(resumo["DESPESA"], errors="coerce").fillna(0)
+
     resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 
+    # ---------- ORDEM DOS MESES ----------
     ordem = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
     resumo["ordem"] = resumo["MES"].str.lower().map({m:i for i,m in enumerate(ordem)})
     resumo = resumo.sort_values("ordem").drop(columns="ordem")
@@ -102,19 +111,15 @@ if arquivo:
     # ================= FILTRO MENSAL =================
     st.subheader("🔎 Análise Mensal Detalhada")
 
-    meses_disponiveis = sorted(
+    meses = sorted(
         set(receitas["MES"].unique()).union(despesas["MES"].unique())
     )
 
-    mes_sel = st.selectbox(
-        "Selecione o mês",
-        meses_disponiveis
-    )
+    mes_sel = st.selectbox("Selecione o mês", meses)
 
     rec_mes = receitas[receitas["MES"] == mes_sel]
     des_mes = despesas[despesas["MES"] == mes_sel]
 
-    # ================= GRÁFICOS DETALHADOS =================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -122,37 +127,37 @@ if arquivo:
         if rec_mes.empty:
             st.info("Nenhuma receita neste mês.")
         else:
-            fig_rec = px.bar(
+            fig_r = px.bar(
                 rec_mes,
                 x="DESCRICAO",
                 y="VALOR",
                 template="plotly_dark",
                 text_auto=".2f"
             )
-            fig_rec.update_traces(textposition="inside")
-            fig_rec.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_rec, use_container_width=True)
+            fig_r.update_traces(textposition="inside")
+            fig_r.update_yaxes(tickprefix="R$ ")
+            st.plotly_chart(fig_r, use_container_width=True)
 
     with col2:
         st.markdown(f"### 💸 Despesas — {mes_sel}")
         if des_mes.empty:
             st.info("Nenhuma despesa neste mês.")
         else:
-            fig_des = px.bar(
+            fig_d = px.bar(
                 des_mes,
                 x="DESCRICAO",
                 y="VALOR",
                 template="plotly_dark",
                 text_auto=".2f"
             )
-            fig_des.update_traces(textposition="inside")
-            fig_des.update_yaxes(tickprefix="R$ ")
-            st.plotly_chart(fig_des, use_container_width=True)
+            fig_d.update_traces(textposition="inside")
+            fig_d.update_yaxes(tickprefix="R$ ")
+            st.plotly_chart(fig_d, use_container_width=True)
 
     st.divider()
 
     # ================= TABELA MENSAL =================
-    st.subheader("📋 Resumo Financeiro do Mês")
+    st.subheader("📋 Fechamento do Mês")
 
     resumo_mes = pd.DataFrame({
         "Tipo": ["Receitas", "Despesas", "Saldo"],
