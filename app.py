@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime, date
 import requests
+import random
 
 # =========================
 # CONFIG GERAL
@@ -61,17 +62,27 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA SEMANAL
+# FRASE MOTIVADORA SEMANAL COM FALLBACK
 # =========================
+FRASES_FALLBACK = [
+    "Grandes conquistas exigem dedicação.",
+    "O sucesso vem para quem não desiste.",
+    "A disciplina é o caminho para a liberdade financeira.",
+    "Pequenos passos todos os dias levam a grandes resultados.",
+    "Acredite no seu potencial e siga em frente.",
+    "Cada desafio é uma oportunidade disfarçada.",
+]
+
 def get_portuguese_quote():
     try:
-        res = requests.get("https://motivacional.top/api.php?acao=aleatoria")
+        res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
         data = res.json()
         frase = data.get("dados", [{}])[0].get("frase", "")
-        return frase if frase else "Encontre na jornada sua própria luz."
+        return frase if frase else random.choice(FRASES_FALLBACK)
     except:
-        return "Inspiração não disponível no momento."
+        return random.choice(FRASES_FALLBACK)
 
+# atualizar por semana
 semana_atual = date.today().isocalendar()[1]
 if st.session_state.get("quote_week") != semana_atual:
     st.session_state["quote_text"] = get_portuguese_quote()
