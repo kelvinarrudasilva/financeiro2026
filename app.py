@@ -118,7 +118,7 @@ PLANILHA_URL = (
 )
 
 # =========================
-# FUNÇÕES
+# FUNÇÕES AUXILIARES
 # =========================
 def limpar_valor(v):
     if pd.isna(v):
@@ -140,23 +140,23 @@ def gerar_cores(n):
     cores = px.colors.qualitative.Vivid
     return [cores[i % len(cores)] for i in range(n)]
 
-def avancar_mes(mes, ano):
-    mes_num = datetime.strptime(mes, "%b").month
-    mes_num += 1
-    if mes_num > 12:
-        mes_num = 1
-        ano += 1
-    novo_mes = datetime(ano, mes_num, 1).strftime("%b").lower()
-    return novo_mes, ano
+MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
 
-def retroceder_mes(mes, ano):
-    mes_num = datetime.strptime(mes, "%b").month
-    mes_num -= 1
-    if mes_num < 1:
-        mes_num = 12
+def avancar_mes(mes_str, ano):
+    idx = MESES_PT.index(mes_str)
+    idx += 1
+    if idx >= 12:
+        idx = 0
+        ano += 1
+    return MESES_PT[idx], ano
+
+def retroceder_mes(mes_str, ano):
+    idx = MESES_PT.index(mes_str)
+    idx -= 1
+    if idx < 0:
+        idx = 11
         ano -= 1
-    novo_mes = datetime(ano, mes_num, 1).strftime("%b").lower()
-    return novo_mes, ano
+    return MESES_PT[idx], ano
 
 # =========================
 # LEITURA PLANILHA
