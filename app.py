@@ -27,14 +27,10 @@ st.markdown("""
     --muted: #9ca3af;
     --accent: #22c55e;
 }
-
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
-
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
-
 h1 { font-weight: 700; letter-spacing: 0.5px; }
 h2, h3 { font-weight: 600; }
-
 [data-testid="metric-container"] {
     background: linear-gradient(145deg, #16161d, #1b1b24);
     border-radius: 18px;
@@ -43,11 +39,8 @@ h2, h3 { font-weight: 600; }
 }
 [data-testid="metric-label"] { color: var(--muted); font-size: 0.85rem; }
 [data-testid="metric-value"] { font-size: 1.6rem; font-weight: 700; }
-
 section[data-testid="stSidebar"] { background-color: #0b0b10; border-right: 1px solid #1f1f2b; }
-
 hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
-
 .quote-card {
     background: linear-gradient(145deg, #1b1b24, #16161d);
     padding: 18px;
@@ -242,7 +235,7 @@ if "mes_sel" not in st.session_state:
 st.sidebar.header("📆 Análise Mensal")
 meses_unicos = resumo["MES_ANO"].unique()
 try:
-    idx = list(meses_unicos).tolist().index(st.session_state["mes_sel"])
+    idx = list(meses_unicos).index(st.session_state["mes_sel"])
 except ValueError:
     idx = 0
 
@@ -252,7 +245,7 @@ mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# BOTÃO PRÓXIMO MÊS SEM ERRO DE RERUN
+# BOTÃO PRÓXIMO MÊS ESTÁVEL
 # =========================
 def avancar_mes(mes, ano):
     datas = sorted(resumo["DATA_CHAVE"].unique())
