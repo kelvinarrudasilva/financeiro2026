@@ -106,7 +106,7 @@ quote = load_or_update_quote()
 # =========================
 # CABEÇALHO
 # =========================
-st.title("🌑 Virada Financeira")
+st.title("🔑 Virada Financeira")
 if quote:
     st.markdown(f'<div class="quote-card">{quote}</div>', unsafe_allow_html=True)
 
