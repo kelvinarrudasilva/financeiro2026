@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, date
 import requests
 import random
@@ -224,30 +225,31 @@ fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# SALDO MENSAL ESTILO LINHA (FIXO PARA TODOS OS MESES)
+# GRÁFICO SALDO ACUMULADO ESTILO BOLSA
 # =========================
-st.subheader("📈 Saldo mensal (linha)")
+st.subheader("📈 Saldo acumulado (estilo bolsa)")
 
-resumo_historico = resumo.sort_values(["ANO","MES_NUM"])
+resumo = resumo.sort_values("DATA_CHAVE")
+resumo["SALDO_ACUM"] = resumo["SALDO"].cumsum()
 
-fig_saldo = px.line(
-    resumo_historico,
-    x="MES_ANO",
-    y="SALDO",
-    markers=True,
-    title="Saldo por mês",
+fig_saldo = go.Figure()
+fig_saldo.add_trace(
+    go.Scatter(
+        x=resumo["MES_ANO"].str.upper(),
+        y=resumo["SALDO_ACUM"],
+        mode="lines+markers",
+        line=dict(color="green"),
+        marker=dict(size=8),
+        hovertemplate="<b>%{x}</b><br>Saldo Acumulado: %{y:,.2f}<br>Receita: %{customdata[0]:,.2f}<br>Despesa: %{customdata[1]:,.2f}<extra></extra>",
+        customdata=resumo[["RECEITA","DESPESA"]].values
+    )
 )
-fig_saldo.update_traces(line_color="#3b82f6", line_width=3, marker_size=8)
-fig_saldo.update_layout(
-    height=400,
-    margin=dict(l=20,r=20,t=40,b=20),
-    xaxis_title="Mês/Ano",
-    yaxis_title="Saldo (R$)",
-    plot_bgcolor="#0e0e11",
-    paper_bgcolor="#0e0e11",
-    font_color="white",
+# cores dinâmicas: vermelho se negativo
+fig_saldo.update_traces(
+    line=dict(color='green'),
+    selector=dict(mode='lines+markers')
 )
-fig_saldo.update_yaxes(tickprefix="R$ ", separatethousands=True)
+fig_saldo.update_layout(height=350, margin=dict(l=20,r=20,t=40,b=20))
 st.plotly_chart(fig_saldo, use_container_width=True)
 
 # =========================
@@ -306,16 +308,19 @@ with col_r:
 
 with col_d:
     if not des_mes.empty:
-        fig_d = px.pie(
-            des_mes,
-            values="VALOR",
-            names="DESCRICAO",
-            hole=0.55,
-            title="💸 Despesas",
-            color_discrete_sequence=gerar_cores(len(des_mes))
+        # Ranking de despesas do mês
+        des_rank = des_mes.sort_values("VALOR", ascending=False).head(10)
+        fig_d = px.bar(
+            des_rank,
+            x="VALOR",
+            y="DESCRICAO",
+            orientation="h",
+            title="💸 Top despesas",
+            text=des_rank["VALOR"].apply(lambda x: formato_real(x)),
+            color="VALOR",
+            color_continuous_scale=px.colors.sequential.Reds
         )
-        fig_d.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
-        fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
+        fig_d.update_layout(margin=dict(t=50, b=20, l=100, r=20))
         st.plotly_chart(fig_d, use_container_width=True)
     else:
         st.info("Nenhuma despesa no mês.")
