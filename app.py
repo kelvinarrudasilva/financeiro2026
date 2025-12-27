@@ -140,24 +140,6 @@ def gerar_cores(n):
     cores = px.colors.qualitative.Vivid
     return [cores[i % len(cores)] for i in range(n)]
 
-MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
-
-def avancar_mes(mes_str, ano):
-    idx = MESES_PT.index(mes_str)
-    idx += 1
-    if idx >= 12:
-        idx = 0
-        ano += 1
-    return MESES_PT[idx], ano
-
-def retroceder_mes(mes_str, ano):
-    idx = MESES_PT.index(mes_str)
-    idx -= 1
-    if idx < 0:
-        idx = 11
-        ano -= 1
-    return MESES_PT[idx], ano
-
 # =========================
 # LEITURA PLANILHA
 # =========================
@@ -242,60 +224,32 @@ fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# SESSION_STATE PARA MÊS SELECIONADO
+# SELECTBOX VISUAL PARA TROCAR MÊS
 # =========================
-if "mes_sel" not in st.session_state:
-    st.session_state["mes_sel"] = hoje.strftime("%b").lower() + f"/{hoje.year}"
+meses_unicos = resumo["MES_ANO"].tolist()
+meses_unicos = [m.upper() for m in meses_unicos]  # mais visual
+idx_atual = 0
+for i, m in enumerate(meses_unicos):
+    if m.startswith(hoje.strftime("%b").upper()) and str(hoje.year) in m:
+        idx_atual = i
+        break
 
-meses_unicos = resumo["MES_ANO"].unique()
-
-# =========================
-# BOTÕES ANTERIOR / PRÓXIMO
-# =========================
-col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
-with col_anterior:
-    if st.button("⬅ Mês anterior"):
-        mes_txt, ano_sel = retroceder_mes(*st.session_state["mes_sel"].split("/"))
-        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
-        st.experimental_rerun()
-with col_proximo:
-    if st.button("Próximo mês ➡"):
-        mes_txt, ano_sel = avancar_mes(*st.session_state["mes_sel"].split("/"))
-        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
-        st.experimental_rerun()
-
-# =========================
-# SELECTBOX SEM SOBRESCREVER
-# =========================
-try:
-    idx = meses_unicos.tolist().index(st.session_state["mes_sel"])
-except ValueError:
-    idx = 0
-
-mes_sel = st.sidebar.selectbox(
-    "Mês",
-    meses_unicos,
-    index=idx,
-    key="mes_sel_select"
+mes_sel = st.selectbox(
+    "📅 Escolha o mês",
+    options=meses_unicos,
+    index=idx_atual
 )
-st.session_state["mes_sel"] = mes_sel
 mes_txt, ano_sel = mes_sel.split("/")
-ano_sel = int(ano_sel)
+ano_sel = int(ano_sel.lower().replace(" ", ""))
 
 # =========================
-# SUBHEADER DETALHAMENTO
+# DETALHAMENTO DO MÊS
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
-# =========================
-# DADOS DO MÊS
-# =========================
-rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt)]
-des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt)]
+rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt.lower())]
+des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt.lower())]
 
-# =========================
-# MÉTRICAS DETALHADAS
-# =========================
 d1, d2, d3 = st.columns(3)
 d1.metric("💰 Receitas", formato_real(rec_mes["VALOR"].sum()))
 d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
