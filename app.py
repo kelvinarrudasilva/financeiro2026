@@ -224,6 +224,33 @@ fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
+# SALDO MENSAL ESTILO LINHA (FIXO PARA TODOS OS MESES)
+# =========================
+st.subheader("📈 Saldo mensal (linha)")
+
+resumo_historico = resumo.sort_values(["ANO","MES_NUM"])
+
+fig_saldo = px.line(
+    resumo_historico,
+    x="MES_ANO",
+    y="SALDO",
+    markers=True,
+    title="Saldo por mês",
+)
+fig_saldo.update_traces(line_color="#3b82f6", line_width=3, marker_size=8)
+fig_saldo.update_layout(
+    height=400,
+    margin=dict(l=20,r=20,t=40,b=20),
+    xaxis_title="Mês/Ano",
+    yaxis_title="Saldo (R$)",
+    plot_bgcolor="#0e0e11",
+    paper_bgcolor="#0e0e11",
+    font_color="white",
+)
+fig_saldo.update_yaxes(tickprefix="R$ ", separatethousands=True)
+st.plotly_chart(fig_saldo, use_container_width=True)
+
+# =========================
 # SELECTBOX VISUAL PARA TROCAR MÊS
 # =========================
 meses_unicos = resumo["MES_ANO"].tolist()
