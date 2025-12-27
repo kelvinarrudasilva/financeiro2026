@@ -140,6 +140,24 @@ def gerar_cores(n):
     cores = px.colors.qualitative.Vivid
     return [cores[i % len(cores)] for i in range(n)]
 
+def avancar_mes(mes, ano):
+    mes_num = datetime.strptime(mes, "%b").month
+    mes_num += 1
+    if mes_num > 12:
+        mes_num = 1
+        ano += 1
+    novo_mes = datetime(ano, mes_num, 1).strftime("%b").lower()
+    return novo_mes, ano
+
+def retroceder_mes(mes, ano):
+    mes_num = datetime.strptime(mes, "%b").month
+    mes_num -= 1
+    if mes_num < 1:
+        mes_num = 12
+        ano -= 1
+    novo_mes = datetime(ano, mes_num, 1).strftime("%b").lower()
+    return novo_mes, ano
+
 # =========================
 # LEITURA PLANILHA
 # =========================
@@ -230,33 +248,12 @@ if "mes_sel" not in st.session_state:
     st.session_state["mes_sel"] = hoje.strftime("%b").lower() + f"/{hoje.year}"
 
 # =========================
-# FUNÇÕES DE NAVEGAÇÃO DE MÊS
-# =========================
-def avancar_mes(mes, ano, resumo_df):
-    datas = sorted(resumo_df["DATA_CHAVE"].unique())
-    for i, d in enumerate(datas):
-        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
-            indice = (i + 1) % len(datas)
-            nova_data = datas[indice]
-            return nova_data.strftime("%b").lower(), nova_data.year
-    return mes, ano
-
-def retroceder_mes(mes, ano, resumo_df):
-    datas = sorted(resumo_df["DATA_CHAVE"].unique())
-    for i, d in enumerate(datas):
-        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
-            indice = (i - 1) % len(datas)
-            nova_data = datas[indice]
-            return nova_data.strftime("%b").lower(), nova_data.year
-    return mes, ano
-
-# =========================
 # SIDEBAR
 # =========================
 st.sidebar.header("📆 Análise Mensal")
 meses_unicos = resumo["MES_ANO"].unique()
 try:
-    idx = list(meses_unicos).index(st.session_state["mes_sel"])
+    idx = list(meses_unicos).tolist().index(st.session_state["mes_sel"])
 except ValueError:
     idx = 0
 
@@ -266,17 +263,16 @@ mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# DETALHAMENTO COM BOTÕES ATUALIZADOS
+# DETALHAMENTO COM BOTÕES
 # =========================
-# Processa botões antes do subheader
 col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
 with col_anterior:
     if st.button("⬅ Mês anterior"):
-        mes_txt, ano_sel = retroceder_mes(mes_txt, ano_sel, resumo)
+        mes_txt, ano_sel = retroceder_mes(mes_txt, ano_sel)
         st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
 with col_proximo:
     if st.button("Próximo mês ➡"):
-        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel, resumo)
+        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
         st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
 
 # Atualiza variáveis após clique do botão
@@ -284,7 +280,7 @@ mes_sel = st.session_state["mes_sel"]
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
-# Subheader agora reflete corretamente
+# Subheader atualizado
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 # =========================
