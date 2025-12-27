@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, date
 import requests
 import random
@@ -30,7 +31,7 @@ st.markdown("""
     --blue: #3b82f6;
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
-.block-container { padding: 2rem; max-width: 1300px; }
+.block-container { padding: 2rem; max-width: 1400px; }
 h1 { font-weight: 700; letter-spacing: 0.5px; color:white;}
 h2, h3 { font-weight: 600; color:white;}
 .quote-card {
@@ -142,8 +143,6 @@ def gerar_cores(n):
     cores = px.colors.qualitative.Vivid
     return [cores[i % len(cores)] for i in range(n)]
 
-MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"]
-
 # =========================
 # LEITURA PLANILHA
 # =========================
@@ -179,7 +178,9 @@ with c1:
 with c2:
     st.markdown('<div class="metric-card">💸 Despesa Total<div class="metric-value">'+formato_real(despesas["VALOR"].sum())+'</div></div>', unsafe_allow_html=True)
 with c3:
-    st.markdown('<div class="metric-card">⚖️ Saldo Geral<div class="metric-value">'+formato_real(receitas["VALOR"].sum()-despesas["VALOR"].sum())+'</div></div>', unsafe_allow_html=True)
+    saldo_geral = receitas["VALOR"].sum()-despesas["VALOR"].sum()
+    cor_saldo = "#3b82f6" if saldo_geral>=0 else "#ef4444"
+    st.markdown(f'<div class="metric-card">⚖️ Saldo Geral<div class="metric-value" style="color:{cor_saldo}">{formato_real(saldo_geral)}</div></div>', unsafe_allow_html=True)
 st.divider()
 
 # =========================
@@ -191,6 +192,8 @@ resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
+resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
+resumo["MES_ANO_DISPLAY"] = ["📅 "+m.upper() for m in resumo["MES_ANO"]]
 
 # =========================
 # BALANÇO FINANCEIRO
@@ -221,7 +224,6 @@ st.plotly_chart(fig, use_container_width=True)
 # =========================
 # SELECT SLIDER HORIZONTAL PARA MÊS
 # =========================
-resumo["MES_ANO_DISPLAY"] = ["📅 "+m.upper() for m in resumo["MES_ANO"]]
 idx_atual = 0
 for i, m in enumerate(resumo["MES_ANO_DISPLAY"]):
     if m.startswith("📅 "+hoje.strftime("%b").upper()):
@@ -240,29 +242,40 @@ st.subheader(f"📆 Detalhamento — {mes_sel_display}")
 rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt)]
 des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt)]
 
+# Cards métricas com indicador de saldo
 d1, d2, d3 = st.columns(3)
 with d1: st.markdown(f'<div class="metric-card">💰 Receitas<div class="metric-value">{formato_real(rec_mes["VALOR"].sum())}</div></div>', unsafe_allow_html=True)
 with d2: st.markdown(f'<div class="metric-card">💸 Despesas<div class="metric-value">{formato_real(des_mes["VALOR"].sum())}</div></div>', unsafe_allow_html=True)
-with d3: st.markdown(f'<div class="metric-card">⚖️ Saldo<div class="metric-value">{formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum())}</div></div>', unsafe_allow_html=True)
+saldo_mes = rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()
+cor_saldo = "#3b82f6" if saldo_mes>=0 else "#ef4444"
+with d3: st.markdown(f'<div class="metric-card">⚖️ Saldo<div class="metric-value" style="color:{cor_saldo}">{formato_real(saldo_mes)}</div></div>', unsafe_allow_html=True)
 
 # =========================
-# COMPOSIÇÃO DO MÊS
+# COMPOSIÇÃO DO MÊS (BARRAS PERCENTUAIS)
 # =========================
-st.subheader("📌 Composição do mês")
-col_r, col_d = st.columns(2)
+st.subheader("📌 Composição do mês (Percentual)")
 
-with col_r:
-    if not rec_mes.empty:
-        fig_r = px.pie(rec_mes, values="VALOR", names="DESCRICAO", hole=0.55, color_discrete_sequence=gerar_cores(len(rec_mes)))
-        fig_r.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
-        fig_r.update_layout(showlegend=True, margin=dict(t=50,b=20,l=20,r=20))
-        st.plotly_chart(fig_r, use_container_width=True)
-    else: st.info("Nenhuma receita no mês.")
+if not rec_mes.empty:
+    rec_mes["PERCENT"] = rec_mes["VALOR"]/rec_mes["VALOR"].sum()*100
+    fig_r = px.bar(rec_mes, x="DESCRICAO", y="PERCENT", text="VALOR", color="DESCRICAO", color_discrete_sequence=gerar_cores(len(rec_mes)))
+    fig_r.update_traces(texttemplate="%{text:,.2f}", textposition="outside")
+    fig_r.update_layout(showlegend=False, yaxis_title="Percentual (%)", margin=dict(t=40,b=40,l=20,r=20))
+    st.plotly_chart(fig_r, use_container_width=True)
 
-with col_d:
-    if not des_mes.empty:
-        fig_d = px.pie(des_mes, values="VALOR", names="DESCRICAO", hole=0.55, color_discrete_sequence=gerar_cores(len(des_mes)))
-        fig_d.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
-        fig_d.update_layout(showlegend=True, margin=dict(t=50,b=20,l=20,r=20))
-        st.plotly_chart(fig_d, use_container_width=True)
-    else: st.info("Nenhuma despesa no mês.")
+if not des_mes.empty:
+    des_mes["PERCENT"] = des_mes["VALOR"]/des_mes["VALOR"].sum()*100
+    fig_d = px.bar(des_mes, x="DESCRICAO", y="PERCENT", text="VALOR", color="DESCRICAO", color_discrete_sequence=gerar_cores(len(des_mes)))
+    fig_d.update_traces(texttemplate="%{text:,.2f}", textposition="outside")
+    fig_d.update_layout(showlegend=False, yaxis_title="Percentual (%)", margin=dict(t=40,b=40,l=20,r=20))
+    st.plotly_chart(fig_d, use_container_width=True)
+
+# =========================
+# SALDO ACUMULADO
+# =========================
+st.subheader("📈 Saldo acumulado")
+
+resumo["SALDO_ACUM"] = resumo["SALDO"].cumsum()
+fig_saldo = go.Figure()
+fig_saldo.add_trace(go.Scatter(x=resumo["MES_ANO"].str.upper(), y=resumo["SALDO_ACUM"], mode='lines+markers', line=dict(color="#3b82f6", width=3), name="Saldo Acumulado"))
+fig_saldo.update_layout(height=400, margin=dict(l=20,r=20,t=40,b=20))
+st.plotly_chart(fig_saldo, use_container_width=True)
