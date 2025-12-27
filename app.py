@@ -6,7 +6,6 @@ from datetime import datetime, date
 import requests
 import random
 import os
-import numpy as np
 
 # =========================
 # CONFIGURAÇÃO GERAL
@@ -19,9 +18,10 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM + FRASE
+# ESTILO PREMIUM + FRASE + FONT AWESOME
 # =========================
 st.markdown("""
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-yV0C/ef86O9Zq0AaFvN9rDbhVwF9I0y0z0H0H9y1QZ0hU6Z5D7U6CvFpp8y9jR3eO6Z0aVQxgk0rMkzFjXw4+A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 :root {
     --bg: #0e0e11;
@@ -53,6 +53,11 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
     color: #9ca3af;
     font-style: italic;
     text-align: center;
+}
+.metric-icon {
+    font-size: 2rem;
+    color: var(--accent);
+    margin-right: 8px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -168,13 +173,16 @@ for base in [receitas, despesas]:
     base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
 # =========================
-# MÉTRICAS PRINCIPAIS
+# MÉTRICAS PRINCIPAIS COM ICONES MODERNOS
 # =========================
 st.subheader("📌 Visão Geral")
 c1, c2, c3 = st.columns(3)
-c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
-c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
-c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
+c1.markdown(f'<i class="fa-solid fa-money-bill-wave metric-icon"></i>💵 Receita Total', unsafe_allow_html=True)
+c1.metric("", formato_real(receitas["VALOR"].sum()))
+c2.markdown(f'<i class="fa-solid fa-credit-card metric-icon"></i>💸 Despesa Total', unsafe_allow_html=True)
+c2.metric("", formato_real(despesas["VALOR"].sum()))
+c3.markdown(f'<i class="fa-solid fa-scale-balanced metric-icon"></i>⚖️ Saldo Geral', unsafe_allow_html=True)
+c3.metric("", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 st.divider()
 
 # =========================
@@ -236,7 +244,6 @@ fig.add_trace(go.Bar(
     text=resumo_plot["SALDO"].apply(formato_real),
     textposition="inside"
 ))
-# linha de tendência saldo
 fig.add_trace(go.Scatter(
     x=resumo_plot["MES_ANO"].str.upper(),
     y=resumo_plot["SALDO"],
@@ -256,7 +263,7 @@ fig_saldo = go.Figure()
 fig_saldo.add_trace(
     go.Scatter(
         x=resumo["MES_ANO"].str.upper(),
-        y=resumo["SALDO"],  # saldo do mês individual
+        y=resumo["SALDO"],
         mode="lines+markers",
         line=dict(color="green"),
         marker=dict(size=8),
