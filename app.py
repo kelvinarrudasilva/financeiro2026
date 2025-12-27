@@ -187,10 +187,9 @@ resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
-resumo["SALDO_ACUM"] = resumo["SALDO"].cumsum()
 
 # =========================
-# BALANÇO FINANCEIRO COM LINHA DE TENDÊNCIA
+# BALANÇO FINANCEIRO
 # =========================
 expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
 hoje = datetime.now()
@@ -250,18 +249,18 @@ fig.update_layout(height=450, barmode='group', margin=dict(l=20,r=20,t=40,b=20),
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# GRÁFICO SALDO ACUMULADO ESTILO BOLSA
+# GRÁFICO SALDO MÊS A MÊS
 # =========================
-st.subheader("📈 Saldo acumulado (estilo bolsa)")
+st.subheader("📈 Saldo mensal (estilo bolsa)")
 fig_saldo = go.Figure()
 fig_saldo.add_trace(
     go.Scatter(
         x=resumo["MES_ANO"].str.upper(),
-        y=resumo["SALDO_ACUM"],
+        y=resumo["SALDO"],  # saldo do mês individual
         mode="lines+markers",
         line=dict(color="green"),
         marker=dict(size=8),
-        hovertemplate="<b>%{x}</b><br>Saldo Acumulado: %{y:,.2f}<br>Receita: %{customdata[0]:,.2f}<br>Despesa: %{customdata[1]:,.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Saldo do mês: %{y:,.2f}<br>Receita: %{customdata[0]:,.2f}<br>Despesa: %{customdata[1]:,.2f}<extra></extra>",
         customdata=resumo[["RECEITA","DESPESA"]].values
     )
 )
