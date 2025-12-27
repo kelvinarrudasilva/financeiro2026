@@ -6,6 +6,7 @@ from datetime import datetime, date
 import requests
 import random
 import os
+import numpy as np
 
 # =========================
 # CONFIGURAÇÃO GERAL
@@ -186,9 +187,10 @@ resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
 resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
+resumo["SALDO_ACUM"] = resumo["SALDO"].cumsum()
 
 # =========================
-# BALANÇO FINANCEIRO
+# BALANÇO FINANCEIRO COM LINHA DE TENDÊNCIA
 # =========================
 expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
 hoje = datetime.now()
@@ -205,33 +207,52 @@ else:
             ano += 1
         meses_a_mostrar.append((ano, mes))
     resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
-
 if resumo_plot.empty:
     resumo_plot = resumo.copy()
 
 st.subheader("📊 Balanço Financeiro")
-fig = px.bar(
-    resumo_plot,
-    x="MES_ANO",
-    y=["RECEITA","DESPESA","SALDO"],
-    barmode="group",
-    text_auto=True
-)
-fig.update_layout(height=420, margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
-fig.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
-fig.update_traces(selector=dict(name="RECEITA"), marker_color="#22c55e")
-fig.update_traces(selector=dict(name="DESPESA"), marker_color="#ef4444")
-fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
+fig = go.Figure()
+cores_saldo = ["#3b82f6" if s>=0 else "#ef4444" for s in resumo_plot["SALDO"]]
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["RECEITA"],
+    name="Receita",
+    marker_color="#22c55e",
+    text=resumo_plot["RECEITA"].apply(formato_real),
+    textposition="inside"
+))
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["DESPESA"],
+    name="Despesa",
+    marker_color="#ef4444",
+    text=resumo_plot["DESPESA"].apply(formato_real),
+    textposition="inside"
+))
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["SALDO"],
+    name="Saldo",
+    marker_color=cores_saldo,
+    text=resumo_plot["SALDO"].apply(formato_real),
+    textposition="inside"
+))
+# linha de tendência saldo
+fig.add_trace(go.Scatter(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["SALDO"],
+    mode="lines+markers",
+    name="Tendência Saldo",
+    line=dict(color="#facc15", width=2, dash="dash"),
+    hovertemplate="%{y:,.2f} no mês %{x}"
+))
+fig.update_layout(height=450, barmode='group', margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # GRÁFICO SALDO ACUMULADO ESTILO BOLSA
 # =========================
 st.subheader("📈 Saldo acumulado (estilo bolsa)")
-
-resumo = resumo.sort_values("DATA_CHAVE")
-resumo["SALDO_ACUM"] = resumo["SALDO"].cumsum()
-
 fig_saldo = go.Figure()
 fig_saldo.add_trace(
     go.Scatter(
@@ -244,11 +265,6 @@ fig_saldo.add_trace(
         customdata=resumo[["RECEITA","DESPESA"]].values
     )
 )
-# cores dinâmicas: vermelho se negativo
-fig_saldo.update_traces(
-    line=dict(color='green'),
-    selector=dict(mode='lines+markers')
-)
 fig_saldo.update_layout(height=350, margin=dict(l=20,r=20,t=40,b=20))
 st.plotly_chart(fig_saldo, use_container_width=True)
 
@@ -256,7 +272,7 @@ st.plotly_chart(fig_saldo, use_container_width=True)
 # SELECTBOX VISUAL PARA TROCAR MÊS
 # =========================
 meses_unicos = resumo["MES_ANO"].tolist()
-meses_unicos = [m.upper() for m in meses_unicos]  # mais visual
+meses_unicos = [m.upper() for m in meses_unicos]
 idx_atual = 0
 for i, m in enumerate(meses_unicos):
     if m.startswith(hoje.strftime("%b").upper()) and str(hoje.year) in m:
@@ -285,7 +301,7 @@ d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
-# COMPOSIÇÃO DO MÊS
+# COMPOSIÇÃO DO MÊS E RANKING DESPESAS
 # =========================
 st.subheader("📌 Composição do mês")
 col_r, col_d = st.columns(2)
@@ -308,7 +324,6 @@ with col_r:
 
 with col_d:
     if not des_mes.empty:
-        # Ranking de despesas do mês
         des_rank = des_mes.sort_values("VALOR", ascending=False).head(10)
         fig_d = px.bar(
             des_rank,
