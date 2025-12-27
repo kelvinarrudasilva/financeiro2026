@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, date
 import requests
 import random
@@ -18,10 +17,9 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM + FRASE + FONT AWESOME
+# ESTILO PREMIUM + FRASE
 # =========================
 st.markdown("""
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-yV0C/ef86O9Zq0AaFvN9rDbhVwF9I0y0z0H0H9y1QZ0hU6Z5D7U6CvFpp8y9jR3eO6Z0aVQxgk0rMkzFjXw4+A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 :root {
     --bg: #0e0e11;
@@ -53,11 +51,6 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
     color: #9ca3af;
     font-style: italic;
     text-align: center;
-}
-.metric-icon {
-    font-size: 2rem;
-    color: var(--accent);
-    margin-right: 8px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -173,16 +166,13 @@ for base in [receitas, despesas]:
     base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
 # =========================
-# MÉTRICAS PRINCIPAIS COM ICONES MODERNOS
+# MÉTRICAS PRINCIPAIS
 # =========================
 st.subheader("📌 Visão Geral")
 c1, c2, c3 = st.columns(3)
-c1.markdown(f'<i class="fa-solid fa-money-bill-wave metric-icon"></i>💵 Receita Total', unsafe_allow_html=True)
-c1.metric("", formato_real(receitas["VALOR"].sum()))
-c2.markdown(f'<i class="fa-solid fa-credit-card metric-icon"></i>💸 Despesa Total', unsafe_allow_html=True)
-c2.metric("", formato_real(despesas["VALOR"].sum()))
-c3.markdown(f'<i class="fa-solid fa-scale-balanced metric-icon"></i>⚖️ Saldo Geral', unsafe_allow_html=True)
-c3.metric("", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
+c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
+c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
+c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 st.divider()
 
 # =========================
@@ -214,71 +204,30 @@ else:
             ano += 1
         meses_a_mostrar.append((ano, mes))
     resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
+
 if resumo_plot.empty:
     resumo_plot = resumo.copy()
 
 st.subheader("📊 Balanço Financeiro")
-fig = go.Figure()
-cores_saldo = ["#3b82f6" if s>=0 else "#ef4444" for s in resumo_plot["SALDO"]]
-fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["RECEITA"],
-    name="Receita",
-    marker_color="#22c55e",
-    text=resumo_plot["RECEITA"].apply(formato_real),
-    textposition="inside"
-))
-fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["DESPESA"],
-    name="Despesa",
-    marker_color="#ef4444",
-    text=resumo_plot["DESPESA"].apply(formato_real),
-    textposition="inside"
-))
-fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["SALDO"],
-    name="Saldo",
-    marker_color=cores_saldo,
-    text=resumo_plot["SALDO"].apply(formato_real),
-    textposition="inside"
-))
-fig.add_trace(go.Scatter(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["SALDO"],
-    mode="lines+markers",
-    name="Tendência Saldo",
-    line=dict(color="#facc15", width=2, dash="dash"),
-    hovertemplate="%{y:,.2f} no mês %{x}"
-))
-fig.update_layout(height=450, barmode='group', margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
-st.plotly_chart(fig, use_container_width=True)
-
-# =========================
-# GRÁFICO SALDO MÊS A MÊS
-# =========================
-st.subheader("📈 Saldo mensal (estilo bolsa)")
-fig_saldo = go.Figure()
-fig_saldo.add_trace(
-    go.Scatter(
-        x=resumo["MES_ANO"].str.upper(),
-        y=resumo["SALDO"],
-        mode="lines+markers",
-        line=dict(color="green"),
-        marker=dict(size=8),
-        hovertemplate="<b>%{x}</b><br>Saldo do mês: %{y:,.2f}<br>Receita: %{customdata[0]:,.2f}<br>Despesa: %{customdata[1]:,.2f}<extra></extra>",
-        customdata=resumo[["RECEITA","DESPESA"]].values
-    )
+fig = px.bar(
+    resumo_plot,
+    x="MES_ANO",
+    y=["RECEITA","DESPESA","SALDO"],
+    barmode="group",
+    text_auto=True
 )
-fig_saldo.update_layout(height=350, margin=dict(l=20,r=20,t=40,b=20))
-st.plotly_chart(fig_saldo, use_container_width=True)
+fig.update_layout(height=420, margin=dict(l=20,r=20,t=40,b=20), legend_title=None)
+fig.update_traces(texttemplate="R$ %{y:,.2f}", textposition="inside")
+fig.update_traces(selector=dict(name="RECEITA"), marker_color="#22c55e")
+fig.update_traces(selector=dict(name="DESPESA"), marker_color="#ef4444")
+fig.update_traces(selector=dict(name="SALDO"), marker_color="#3b82f6")
+st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # SELECTBOX VISUAL PARA TROCAR MÊS
 # =========================
 meses_unicos = resumo["MES_ANO"].tolist()
-meses_unicos = [m.upper() for m in meses_unicos]
+meses_unicos = [m.upper() for m in meses_unicos]  # mais visual
 idx_atual = 0
 for i, m in enumerate(meses_unicos):
     if m.startswith(hoje.strftime("%b").upper()) and str(hoje.year) in m:
@@ -307,7 +256,7 @@ d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
-# COMPOSIÇÃO DO MÊS E RANKING DESPESAS
+# COMPOSIÇÃO DO MÊS
 # =========================
 st.subheader("📌 Composição do mês")
 col_r, col_d = st.columns(2)
@@ -330,18 +279,16 @@ with col_r:
 
 with col_d:
     if not des_mes.empty:
-        des_rank = des_mes.sort_values("VALOR", ascending=False).head(10)
-        fig_d = px.bar(
-            des_rank,
-            x="VALOR",
-            y="DESCRICAO",
-            orientation="h",
-            title="💸 Top despesas",
-            text=des_rank["VALOR"].apply(lambda x: formato_real(x)),
-            color="VALOR",
-            color_continuous_scale=px.colors.sequential.Reds
+        fig_d = px.pie(
+            des_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            title="💸 Despesas",
+            color_discrete_sequence=gerar_cores(len(des_mes))
         )
-        fig_d.update_layout(margin=dict(t=50, b=20, l=100, r=20))
+        fig_d.update_traces(texttemplate="%{label}<br>R$ %{value:,.2f}", textposition="inside")
+        fig_d.update_layout(showlegend=True, margin=dict(t=50, b=20, l=20, r=20))
         st.plotly_chart(fig_d, use_container_width=True)
     else:
         st.info("Nenhuma despesa no mês.")
