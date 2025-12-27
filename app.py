@@ -12,8 +12,8 @@ import numpy as np
 # CONFIGURAÇÃO GERAL
 # =========================
 st.set_page_config(
-    page_title="🌑 Virada Financeira",
-    page_icon="🌑",
+    page_title="💰 Virada Financeira",
+    page_icon="🗝️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
