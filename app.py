@@ -266,11 +266,10 @@ mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# DETALHAMENTO COM BOTÕES
+# DETALHAMENTO COM BOTÕES ATUALIZADOS
 # =========================
+# Processa botões antes do subheader
 col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
-with col_titulo:
-    st.subheader(f"📆 Detalhamento — {st.session_state['mes_sel']}")
 with col_anterior:
     if st.button("⬅ Mês anterior"):
         mes_txt, ano_sel = retroceder_mes(mes_txt, ano_sel, resumo)
@@ -279,6 +278,14 @@ with col_proximo:
     if st.button("Próximo mês ➡"):
         mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel, resumo)
         st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
+
+# Atualiza variáveis após clique do botão
+mes_sel = st.session_state["mes_sel"]
+mes_txt, ano_sel = mes_sel.split("/")
+ano_sel = int(ano_sel)
+
+# Subheader agora reflete corretamente
+st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 # =========================
 # DADOS DO MÊS
