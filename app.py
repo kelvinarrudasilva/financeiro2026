@@ -247,40 +247,44 @@ st.plotly_chart(fig, use_container_width=True)
 if "mes_sel" not in st.session_state:
     st.session_state["mes_sel"] = hoje.strftime("%b").lower() + f"/{hoje.year}"
 
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.header("📆 Análise Mensal")
 meses_unicos = resumo["MES_ANO"].unique()
+
+# =========================
+# BOTÕES ANTERIOR / PRÓXIMO
+# =========================
+col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
+with col_anterior:
+    if st.button("⬅ Mês anterior"):
+        mes_txt, ano_sel = retroceder_mes(*st.session_state["mes_sel"].split("/"))
+        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
+        st.experimental_rerun()
+with col_proximo:
+    if st.button("Próximo mês ➡"):
+        mes_txt, ano_sel = avancar_mes(*st.session_state["mes_sel"].split("/"))
+        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
+        st.experimental_rerun()
+
+# =========================
+# SELECTBOX SEM SOBRESCREVER
+# =========================
 try:
     idx = meses_unicos.tolist().index(st.session_state["mes_sel"])
 except ValueError:
     idx = 0
 
-mes_sel = st.sidebar.selectbox("Mês", meses_unicos, index=idx, key="mes_sel_select")
+mes_sel = st.sidebar.selectbox(
+    "Mês",
+    meses_unicos,
+    index=idx,
+    key="mes_sel_select"
+)
 st.session_state["mes_sel"] = mes_sel
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# DETALHAMENTO COM BOTÕES
+# SUBHEADER DETALHAMENTO
 # =========================
-col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
-with col_anterior:
-    if st.button("⬅ Mês anterior"):
-        mes_txt, ano_sel = retroceder_mes(mes_txt, ano_sel)
-        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
-with col_proximo:
-    if st.button("Próximo mês ➡"):
-        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
-        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
-
-# Atualiza variáveis após clique do botão
-mes_sel = st.session_state["mes_sel"]
-mes_txt, ano_sel = mes_sel.split("/")
-ano_sel = int(ano_sel)
-
-# Subheader atualizado
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 # =========================
