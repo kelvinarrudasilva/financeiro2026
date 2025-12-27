@@ -230,6 +230,27 @@ if "mes_sel" not in st.session_state:
     st.session_state["mes_sel"] = hoje.strftime("%b").lower() + f"/{hoje.year}"
 
 # =========================
+# FUNÇÕES DE NAVEGAÇÃO DE MÊS
+# =========================
+def avancar_mes(mes, ano, resumo_df):
+    datas = sorted(resumo_df["DATA_CHAVE"].unique())
+    for i, d in enumerate(datas):
+        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
+            indice = (i + 1) % len(datas)
+            nova_data = datas[indice]
+            return nova_data.strftime("%b").lower(), nova_data.year
+    return mes, ano
+
+def retroceder_mes(mes, ano, resumo_df):
+    datas = sorted(resumo_df["DATA_CHAVE"].unique())
+    for i, d in enumerate(datas):
+        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
+            indice = (i - 1) % len(datas)
+            nova_data = datas[indice]
+            return nova_data.strftime("%b").lower(), nova_data.year
+    return mes, ano
+
+# =========================
 # SIDEBAR
 # =========================
 st.sidebar.header("📆 Análise Mensal")
@@ -245,23 +266,18 @@ mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
 # =========================
-# BOTÃO PRÓXIMO MÊS ESTÁVEL
+# DETALHAMENTO COM BOTÕES
 # =========================
-def avancar_mes(mes, ano):
-    datas = sorted(resumo["DATA_CHAVE"].unique())
-    for i, d in enumerate(datas):
-        if d.year == ano and d.month == datetime.strptime(mes, "%b").month:
-            indice = (i + 1) % len(datas)
-            nova_data = datas[indice]
-            return nova_data.strftime("%b").lower(), nova_data.year
-    return mes, ano
-
-col_titulo, col_botao = st.columns([8,1])
+col_titulo, col_anterior, col_proximo = st.columns([8,1,1])
 with col_titulo:
     st.subheader(f"📆 Detalhamento — {st.session_state['mes_sel']}")
-with col_botao:
-    if st.button("➡ Próximo mês"):
-        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel)
+with col_anterior:
+    if st.button("⬅ Mês anterior"):
+        mes_txt, ano_sel = retroceder_mes(mes_txt, ano_sel, resumo)
+        st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
+with col_proximo:
+    if st.button("Próximo mês ➡"):
+        mes_txt, ano_sel = avancar_mes(mes_txt, ano_sel, resumo)
         st.session_state["mes_sel"] = f"{mes_txt}/{ano_sel}"
 
 # =========================
