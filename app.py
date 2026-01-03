@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM
+# ESTILO PREMIUM + FRASE
 # =========================
 st.markdown("""
 <style>
@@ -31,7 +31,8 @@ st.markdown("""
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
-h1 { font-weight: 700; }
+h1 { font-weight: 700; letter-spacing: 0.5px; }
+h2, h3 { font-weight: 600; }
 [data-testid="metric-container"] {
     background: linear-gradient(145deg, #16161d, #1b1b24);
     border-radius: 18px;
@@ -55,12 +56,12 @@ h1 { font-weight: 700; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE DIÁRIA
+# FRASE MOTIVADORA
 # =========================
 FRASES_FALLBACK = [
     "Disciplina hoje, liberdade amanhã.",
-    "O dinheiro obedece quem pensa antes de gastar.",
     "Quem governa o mês, governa o ano.",
+    "O dinheiro respeita quem planeja."
 ]
 
 def get_quote():
@@ -93,11 +94,15 @@ def limpar_valor(v):
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# =========================
-# LEITURA
-# =========================
+def gerar_cores(n):
+    cores = px.colors.qualitative.Vivid
+    return [cores[i % len(cores)] for i in range(n)]
+
 df = pd.read_excel(PLANILHA_URL)
 
+# =========================
+# BASES
+# =========================
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
@@ -113,42 +118,43 @@ for base in [receitas, despesas]:
     base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
 # =========================
-# SELECTOR — MÊS ATUAL + PRÓXIMO
+# RESUMO MENSAL
+# =========================
+rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"RECEITA"})
+des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"DESPESA"})
+resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
+resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
+resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.upper()
+
+# =========================
+# SELECTBOX MÊS
 # =========================
 hoje = datetime.now()
-mes_atual = hoje.strftime("%b").lower()
-ano_atual = hoje.year
+meses_unicos = resumo["MES_ANO"].tolist()
 
-if hoje.month == 12:
-    prox_mes = "jan"
-    prox_ano = ano_atual + 1
-else:
-    prox_mes = datetime(ano_atual, hoje.month + 1, 1).strftime("%b").lower()
-    prox_ano = ano_atual
+idx_atual = 0
+for i, m in enumerate(meses_unicos):
+    if hoje.strftime("%b").upper() in m and str(hoje.year) in m:
+        idx_atual = i
+        break
 
-opcoes = [
-    f"{mes_atual}/{ano_atual}",
-    f"{prox_mes}/{prox_ano}"
-]
-
-opcoes = [o.upper() for o in opcoes]
-
-mes_sel = st.selectbox("📅 Escolha o mês", opcoes, index=0)
-mes_txt, ano_sel = mes_sel.lower().split("/")
+mes_sel = st.selectbox("📅 Escolha o mês", meses_unicos, index=idx_atual)
+mes_txt, ano_sel = mes_sel.split("/")
+mes_txt = mes_txt.lower()
 ano_sel = int(ano_sel)
 
 # =========================
-# DETALHAMENTO — AGORA NO TOPO
+# 🔝 DETALHAMENTO DO MÊS (AGORA EM CIMA)
 # =========================
 st.subheader(f"📆 Detalhamento — {mes_sel}")
 
 rec_mes = receitas[(receitas["ANO"]==ano_sel)&(receitas["MES"]==mes_txt)]
 des_mes = despesas[(despesas["ANO"]==ano_sel)&(despesas["MES"]==mes_txt)]
 
-c1, c2, c3 = st.columns(3)
-c1.metric("💰 Receitas", formato_real(rec_mes["VALOR"].sum()))
-c2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
-c3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
+d1, d2, d3 = st.columns(3)
+d1.metric("💰 Receitas", formato_real(rec_mes["VALOR"].sum()))
+d2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
+d3.metric("⚖️ Saldo", formato_real(rec_mes["VALOR"].sum()-des_mes["VALOR"].sum()))
 
 # =========================
 # COMPOSIÇÃO DO MÊS
@@ -159,44 +165,32 @@ col_r, col_d = st.columns(2)
 with col_r:
     if not rec_mes.empty:
         fig_r = px.pie(
-            rec_mes, values="VALOR", names="DESCRICAO", hole=0.55, title="Receitas"
+            rec_mes,
+            values="VALOR",
+            names="DESCRICAO",
+            hole=0.55,
+            color_discrete_sequence=gerar_cores(len(rec_mes))
         )
         st.plotly_chart(fig_r, use_container_width=True)
     else:
-        st.info("Nenhuma receita registrada.")
+        st.info("Nenhuma receita no mês.")
 
 with col_d:
     if not des_mes.empty:
         top = des_mes.sort_values("VALOR", ascending=False).head(10)
         fig_d = px.bar(
-            top, x="VALOR", y="DESCRICAO", orientation="h", title="Top despesas"
+            top,
+            x="VALOR",
+            y="DESCRICAO",
+            orientation="h"
         )
         st.plotly_chart(fig_d, use_container_width=True)
     else:
-        st.info("Nenhuma despesa registrada.")
+        st.info("Nenhuma despesa no mês.")
 
 # =========================
-# RESUMO GERAL
+# 🔽 BALANÇO FINANCEIRO (AGORA EMBAIXO)
 # =========================
-st.divider()
-st.subheader("📌 Visão Geral")
-
-v1, v2, v3 = st.columns(3)
-v1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
-v2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
-v3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum()-despesas["VALOR"].sum()))
-
-# =========================
-# BALANÇO FINANCEIRO (AGORA EMBAIXO)
-# =========================
-rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum()
-des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum()
-
-resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
-resumo.columns = ["ANO","MES_NUM","MES","RECEITA","DESPESA"]
-resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
-resumo["MES_ANO"] = resumo["MES"].str.upper() + "/" + resumo["ANO"].astype(str)
-
 st.subheader("📊 Balanço Financeiro")
 fig = go.Figure()
 
@@ -206,3 +200,15 @@ fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"], name="Saldo")
 
 fig.update_layout(barmode="group", height=450)
 st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# EVOLUÇÃO DO SALDO
+# =========================
+st.subheader("📈 Saldo mensal")
+fig_saldo = go.Figure()
+fig_saldo.add_trace(go.Scatter(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    mode="lines+markers"
+))
+st.plotly_chart(fig_saldo, use_container_width=True)
