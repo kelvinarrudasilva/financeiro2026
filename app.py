@@ -109,8 +109,7 @@ quote = load_or_update_quote()
 st.title("🔑 Virada Financeira")
 if quote:
     st.markdown(f'<div class="quote-card">{quote}</div>', unsafe_allow_html=True)
-# 👇 AQUI NASCEM AS ABAS
-tabs = st.tabs(["📊 Financeiro", "💼 Investimentos"])
+
 # =========================
 # PLANILHA GOOGLE DRIVE
 # =========================
@@ -347,60 +346,3 @@ with col_d:
         st.plotly_chart(fig_d, use_container_width=True)
     else:
         st.info("Nenhuma despesa no mês.")
-with tabs[1]:
-    st.subheader("💼 Investimentos — rumo aos 40k")
-
-    try:
-        investimentos = df[df.iloc[:,0] == "INVESTIMENTO"].copy()
-    except:
-        st.error("❌ Aba INVESTIMENTO não encontrada na planilha.")
-        st.stop()
-
-    # Ajuste de colunas (DATA | DESCRICAO | VALOR)
-    investimentos = df[df.columns[0:3]].copy()
-    investimentos.columns = ["DATA", "DESCRICAO", "VALOR"]
-
-    investimentos["DATA"] = pd.to_datetime(investimentos["DATA"], errors="coerce")
-    investimentos["VALOR"] = investimentos["VALOR"].apply(limpar_valor)
-    investimentos.dropna(subset=["DATA"], inplace=True)
-
-    investimentos = investimentos.sort_values("DATA")
-    investimentos["ACUMULADO"] = investimentos["VALOR"].cumsum()
-
-    total_guardado = investimentos["ACUMULADO"].iloc[-1] if not investimentos.empty else 0
-    meta = 40000
-    falta = meta - total_guardado
-
-    c1, c2 = st.columns(2)
-    c1.metric("💰 Total investido", formato_real(total_guardado))
-    c2.metric("🎯 Falta para 40k", formato_real(falta if falta > 0 else 0))
-
-    # GRÁFICO SIMPLES
-    fig_inv = go.Figure()
-
-    fig_inv.add_trace(go.Scatter(
-        x=investimentos["DATA"],
-        y=investimentos["ACUMULADO"],
-        mode="lines+markers",
-        name="Valor acumulado",
-        line=dict(width=3),
-        marker=dict(size=7)
-    ))
-
-    fig_inv.add_hline(
-        y=meta,
-        line_dash="dash",
-        line_width=2,
-        annotation_text="META 40.000",
-        annotation_position="top left"
-    )
-
-    fig_inv.update_layout(
-        height=400,
-        xaxis_title="Tempo",
-        yaxis_title="Valor acumulado (R$)",
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-
-    st.plotly_chart(fig_inv, use_container_width=True)
-
