@@ -85,12 +85,8 @@ def load_or_update_quote():
     quote = ""
     if os.path.exists(QUOTE_FILE):
         with open(QUOTE_FILE, "r", encoding="utf-8") as f:
-            try:
-                saved_date = f.readline().strip()
-                quote = f.readline().strip()
-            except:
-                saved_date = ""
-                quote = ""
+            saved_date = f.readline().strip()
+            quote = f.readline().strip()
         if saved_date != hoje_str:
             quote = get_portuguese_quote()
             with open(QUOTE_FILE, "w", encoding="utf-8") as f:
@@ -131,7 +127,7 @@ def limpar_valor(v):
             return float(v)
         except:
             return 0.0
-    if isinstance(v, (int,float)):
+    if isinstance(v, (int, float)):
         return float(v)
     return 0.0
 
@@ -149,7 +145,7 @@ try:
     df = pd.read_excel(PLANILHA_URL)
     df_invest = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
 except:
-    st.error("❌ Não foi possível carregar a planilha ou a aba INVESTIMENTO.")
+    st.error("❌ Não foi possível carregar a planilha.")
     st.stop()
 
 # =========================
@@ -184,3 +180,31 @@ c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
 c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 c4.metric("💰 Dinheiro guardado", formato_real(dinheiro_guardado))
 st.divider()
+
+# =========================
+# RESUMO MENSAL
+# =========================
+rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"RECEITA"})
+des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"DESPESA"})
+resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
+resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
+resumo = resumo.sort_values(["ANO","MES_NUM"])
+resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
+
+# =========================
+# BALANÇO FINANCEIRO
+# =========================
+st.subheader("📊 Balanço Financeiro")
+fig = go.Figure()
+fig.add_trace(go.Bar(x=resumo["MES_ANO"], y=resumo["RECEITA"], name="Receita"))
+fig.add_trace(go.Bar(x=resumo["MES_ANO"], y=resumo["DESPESA"], name="Despesa"))
+fig.add_trace(go.Bar(x=resumo["MES_ANO"], y=resumo["SALDO"], name="Saldo"))
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# GRÁFICO SALDO
+# =========================
+st.subheader("📈 Saldo mensal")
+fig2 = go.Figure()
+fig2.add_trace(go.Scatter(x=resumo["MES_ANO"], y=resumo["SALDO"], mode="lines+markers"))
+st.plotly_chart(fig2, use_container_width=True)
