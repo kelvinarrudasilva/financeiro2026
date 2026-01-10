@@ -27,6 +27,7 @@ st.markdown("""
     --bg: #0e0e11;
     --card: #16161d;
     --muted: #9ca3af;
+    --accent: #22c55e;
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
 .block-container { max-width: 1300px; padding: 2rem; }
@@ -36,13 +37,46 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
     padding: 18px;
     border: 1px solid #1f1f2b;
 }
+.quote-card {
+    background: linear-gradient(145deg, #1b1b24, #16161d);
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid #1f1f2b;
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# CABEÇALHO
+# FRASE DIÁRIA
 # =========================
+FRASES = [
+    "Disciplina hoje, liberdade amanhã.",
+    "Dinheiro gosta de silêncio e constância.",
+    "Pouco a pouco, muito."
+]
+
+QUOTE_FILE = "quote.txt"
+
+def frase_dia():
+    hoje = date.today().isoformat()
+    if os.path.exists(QUOTE_FILE):
+        with open(QUOTE_FILE, "r", encoding="utf-8") as f:
+            d = f.readline().strip()
+            t = f.readline().strip()
+            if d == hoje:
+                return t
+    frase = random.choice(FRASES)
+    with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+        f.write(f"{hoje}\n{frase}")
+    return frase
+
 st.title("🔑 Virada Financeira")
+st.markdown(f"<div class='quote-card'>{frase_dia()}</div>", unsafe_allow_html=True)
 
 # =========================
 # PLANILHA
@@ -53,9 +87,6 @@ PLANILHA_URL = (
     "/export?format=xlsx"
 )
 
-# =========================
-# FUNÇÕES
-# =========================
 def limpar_valor(v):
     if pd.isna(v): return 0.0
     if isinstance(v, str):
@@ -71,13 +102,17 @@ def formato_real(v):
 # =========================
 # ABAS
 # =========================
-tabs = st.tabs(["📊 Financeiro", "💎 Investimentos"])
+tabs = st.tabs(["📊 Financeiro", "💼 Investimentos"])
 
-# =====================================================================
-# 📊 ABA FINANCEIRO (SEU CÓDIGO ORIGINAL — SEM ALTERAÇÃO FUNCIONAL)
-# =====================================================================
+# ======================================================
+# ABA FINANCEIRO (SEU APP ORIGINAL)
+# ======================================================
 with tabs[0]:
-    df = pd.read_excel(PLANILHA_URL)
+    try:
+        df = pd.read_excel(PLANILHA_URL)
+    except:
+        st.error("Erro ao carregar planilha.")
+        st.stop()
 
     receitas = df.iloc[1:, 1:5].copy()
     receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
@@ -92,120 +127,62 @@ with tabs[0]:
         base["MES_NUM"] = base["DATA"].dt.month
         base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
-    st.subheader("📌 Visão Geral")
     c1, c2, c3 = st.columns(3)
     c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
     c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
     c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 
-# =====================================================================
-# 💎 ABA INVESTIMENTOS (INTELIGÊNCIA FINANCEIRA)
-# =====================================================================
+# ======================================================
+# ABA INVESTIMENTOS
+# ======================================================
 with tabs[1]:
-    st.subheader("💎 Caminho até os R$ 40.000")
+    st.subheader("💼 Investimentos — Meta R$ 40.000")
 
-    investimentos = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
-    investimentos.columns = ["DATA", "VALOR"]
-    investimentos["DATA"] = pd.to_datetime(investimentos["DATA"])
-    investimentos["VALOR"] = investimentos["VALOR"].apply(limpar_valor)
-    investimentos = investimentos.sort_values("DATA")
+    try:
+        inv = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
+    except:
+        st.error("Aba INVESTIMENTO não encontrada.")
+        st.stop()
 
-    investimentos["ANO"] = investimentos["DATA"].dt.year
-    investimentos["MES"] = investimentos["DATA"].dt.month
+    inv = inv.iloc[:, 0:3].copy()
+    inv.columns = ["DATA", "DESCRICAO", "VALOR"]
 
-    inv_m = investimentos.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
-    inv_m["DATA"] = pd.to_datetime(inv_m["ANO"].astype(str) + "-" + inv_m["MES"].astype(str) + "-01")
-    inv_m = inv_m.sort_values("DATA")
-    inv_m["ACUMULADO"] = inv_m["VALOR"].cumsum()
+    inv["DATA"] = pd.to_datetime(inv["DATA"], errors="coerce")
+    inv["VALOR"] = inv["VALOR"].apply(limpar_valor)
+    inv.dropna(subset=["DATA"], inplace=True)
 
-    # =========================
-    # PARÂMETROS
-    # =========================
-    META = 40000
-    MESES = 12
-    JUROS = 0.01
+    inv = inv.sort_values("DATA")
+    inv["ACUMULADO"] = inv["VALOR"].cumsum()
 
-    saldo_atual = inv_m["ACUMULADO"].iloc[-1]
-    data_base = inv_m["DATA"].iloc[-1]
+    total = inv["ACUMULADO"].iloc[-1] if not inv.empty else 0
+    meta = 40000
+    falta = meta - total
 
-    # =========================
-    # META COM JUROS
-    # =========================
-    falta = max(META - saldo_atual, 0)
-    aporte_base = falta / MESES
+    c1, c2 = st.columns(2)
+    c1.metric("💰 Total guardado", formato_real(total))
+    c2.metric("🎯 Falta para 40k", formato_real(max(falta, 0)))
 
-    datas_meta, valores_meta = [], []
-    saldo = saldo_atual
-
-    for i in range(1, MESES + 1):
-        saldo = (saldo + aporte_base) * (1 + JUROS)
-        datas_meta.append(data_base + pd.DateOffset(months=i))
-        valores_meta.append(saldo)
-
-    meta_df = pd.DataFrame({"DATA": datas_meta, "META": valores_meta})
-
-    # =========================
-    # SIMULAÇÃO ATRASO 2 MESES
-    # =========================
-    datas_atraso, valores_atraso = [], []
-    saldo = saldo_atual
-
-    for i in range(1, MESES + 1):
-        if i > 2:
-            saldo = (saldo + aporte_base) * (1 + JUROS)
-        else:
-            saldo = saldo * (1 + JUROS)
-        datas_atraso.append(data_base + pd.DateOffset(months=i))
-        valores_atraso.append(saldo)
-
-    atraso_df = pd.DataFrame({"DATA": datas_atraso, "ATRASO": valores_atraso})
-
-    # =========================
-    # INDICADOR VISUAL
-    # =========================
-    esperado_hoje = meta_df.iloc[0]["META"]
-    status = "🟢 Acima da meta" if saldo_atual >= esperado_hoje else "🔴 Abaixo da meta"
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💼 Atual", formato_real(saldo_atual))
-    c2.metric("🎯 Meta final", formato_real(META))
-    c3.metric("🚦 Status", status)
-
-    # =========================
-    # GRÁFICO FINAL
-    # =========================
     fig = go.Figure()
-
     fig.add_trace(go.Scatter(
-        x=inv_m["DATA"],
-        y=inv_m["ACUMULADO"],
-        name="Real",
+        x=inv["DATA"],
+        y=inv["ACUMULADO"],
         mode="lines+markers",
-        line=dict(width=3)
+        line=dict(width=3),
+        name="Acumulado"
     ))
 
-    fig.add_trace(go.Scatter(
-        x=meta_df["DATA"],
-        y=meta_df["META"],
-        name="Meta com juros (1%)",
-        mode="lines",
-        line=dict(dash="dash", width=3)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=atraso_df["DATA"],
-        y=atraso_df["ATRASO"],
-        name="Atraso 2 meses",
-        mode="lines",
-        line=dict(dash="dot", width=2)
-    ))
-
-    fig.add_hline(y=META, line_dash="dot", line_color="gold")
+    fig.add_hline(
+        y=meta,
+        line_dash="dash",
+        annotation_text="META 40K",
+        annotation_position="top left"
+    )
 
     fig.update_layout(
-        height=450,
+        height=420,
         xaxis_title="Tempo",
-        yaxis_title="Patrimônio (R$)"
+        yaxis_title="Valor (R$)",
+        margin=dict(l=20, r=20, t=40, b=20)
     )
 
     st.plotly_chart(fig, use_container_width=True)
