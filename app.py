@@ -1,3 +1,6 @@
+# =========================
+# IMPORTS
+# =========================
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -19,7 +22,7 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM
+# ESTILO PREMIUM + FRASE
 # =========================
 st.markdown("""
 <style>
@@ -37,13 +40,44 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
     padding: 18px;
     border: 1px solid #1f1f2b;
 }
-[data-testid="metric-label"] { color: var(--muted); }
+[data-testid="metric-label"] { color: var(--muted); font-size: 0.85rem; }
 [data-testid="metric-value"] { font-size: 1.6rem; font-weight: 700; }
+.quote-card {
+    background: linear-gradient(145deg, #1b1b24, #16161d);
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid #1f1f2b;
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# PLANILHA GOOGLE DRIVE
+# FRASE DIÁRIA
+# =========================
+FRASES_FALLBACK = [
+    "Pequenos passos hoje, liberdade amanhã.",
+    "Quem guarda, governa o próprio futuro.",
+    "Disciplina é riqueza invisível.",
+]
+
+def get_quote():
+    try:
+        r = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
+        j = r.json()
+        return j["dados"][0]["frase"]
+    except:
+        return random.choice(FRASES_FALLBACK)
+
+st.title("🔑 Virada Financeira")
+st.markdown(f'<div class="quote-card">{get_quote()}</div>', unsafe_allow_html=True)
+
+# =========================
+# PLANILHA
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -52,39 +86,36 @@ PLANILHA_URL = (
 )
 
 # =========================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES
 # =========================
 def limpar_valor(v):
-    if pd.isna(v):
-        return 0.0
+    if pd.isna(v): return 0.0
     if isinstance(v, str):
         v = v.replace("R$", "").replace(".", "").replace(",", ".").strip()
-        try:
-            return float(v)
-        except:
-            return 0.0
+        try: return float(v)
+        except: return 0.0
     return float(v)
 
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # =========================
-# LEITURA DA PLANILHA
+# LEITURA DAS ABAS
 # =========================
 try:
-    df_principal = pd.read_excel(PLANILHA_URL)
+    df = pd.read_excel(PLANILHA_URL)
     df_invest = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
 except:
-    st.error("❌ Erro ao carregar a planilha ou a aba INVESTIMENTO.")
+    st.error("Erro ao carregar a planilha ou aba INVESTIMENTO.")
     st.stop()
 
 # =========================
-# BASE RECEITAS / DESPESAS
+# BASES
 # =========================
-receitas = df_principal.iloc[1:, 1:5].copy()
+receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-despesas = df_principal.iloc[1:, 6:10].copy()
+despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
 for base in [receitas, despesas]:
