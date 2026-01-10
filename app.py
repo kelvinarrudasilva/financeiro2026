@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM
+# ESTILO
 # =========================
 st.markdown("""
 <style>
@@ -27,7 +27,6 @@ st.markdown("""
     --bg: #0e0e11;
     --card: #16161d;
     --muted: #9ca3af;
-    --accent: #22c55e;
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
 .block-container { max-width: 1300px; padding: 2rem; }
@@ -37,34 +36,13 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
     padding: 18px;
     border: 1px solid #1f1f2b;
 }
-.quote-card {
-    background: linear-gradient(145deg, #1b1b24, #16161d);
-    padding: 18px;
-    border-radius: 16px;
-    border: 1px solid #1f1f2b;
-    margin-bottom: 1.5rem;
-    font-size: 1.3rem;
-    color: #9ca3af;
-    font-style: italic;
-    text-align: center;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA
+# CABEÇALHO
 # =========================
-def get_quote():
-    frases = [
-        "Disciplina hoje, liberdade amanhã.",
-        "O dinheiro gosta de quem tem plano.",
-        "Constância vence talento financeiro.",
-        "Devagar também é movimento."
-    ]
-    return random.choice(frases)
-
 st.title("🔑 Virada Financeira")
-st.markdown(f"<div class='quote-card'>{get_quote()}</div>", unsafe_allow_html=True)
 
 # =========================
 # PLANILHA
@@ -91,107 +69,143 @@ def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # =========================
-# LEITURA BASE
+# ABAS
 # =========================
-df = pd.read_excel(PLANILHA_URL)
+tabs = st.tabs(["📊 Financeiro", "💎 Investimentos"])
 
-# =========================
-# INVESTIMENTOS
-# =========================
-investimentos = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
-investimentos.columns = ["DATA", "VALOR"]
-investimentos["DATA"] = pd.to_datetime(investimentos["DATA"], errors="coerce")
-investimentos["VALOR"] = investimentos["VALOR"].apply(limpar_valor)
-investimentos.dropna(subset=["DATA"], inplace=True)
-investimentos = investimentos.sort_values("DATA")
+# =====================================================================
+# 📊 ABA FINANCEIRO (SEU CÓDIGO ORIGINAL — SEM ALTERAÇÃO FUNCIONAL)
+# =====================================================================
+with tabs[0]:
+    df = pd.read_excel(PLANILHA_URL)
 
-investimentos["ANO"] = investimentos["DATA"].dt.year
-investimentos["MES"] = investimentos["DATA"].dt.month
+    receitas = df.iloc[1:, 1:5].copy()
+    receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
+    despesas = df.iloc[1:, 6:10].copy()
+    despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-inv_mensal = investimentos.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
-inv_mensal["DATA"] = pd.to_datetime(inv_mensal["ANO"].astype(str) + "-" + inv_mensal["MES"].astype(str) + "-01")
-inv_mensal = inv_mensal.sort_values("DATA")
-inv_mensal["ACUMULADO"] = inv_mensal["VALOR"].cumsum()
+    for base in [receitas, despesas]:
+        base["VALOR"] = base["VALOR"].apply(limpar_valor)
+        base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+        base.dropna(subset=["DATA"], inplace=True)
+        base["ANO"] = base["DATA"].dt.year
+        base["MES_NUM"] = base["DATA"].dt.month
+        base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
-# =========================
-# META
-# =========================
-META = 40000
-saldo_atual = inv_mensal["ACUMULADO"].iloc[-1]
-media_aporte = inv_mensal["VALOR"].mean()
-taxa = 0.01
+    st.subheader("📌 Visão Geral")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
+    c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
+    c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 
-# =========================
-# CONTADOR MESES
-# =========================
-saldo = saldo_atual
-meses = 0
-while saldo < META and meses < 240:
-    saldo = (saldo + media_aporte) * (1 + taxa)
-    meses += 1
+# =====================================================================
+# 💎 ABA INVESTIMENTOS (INTELIGÊNCIA FINANCEIRA)
+# =====================================================================
+with tabs[1]:
+    st.subheader("💎 Caminho até os R$ 40.000")
 
-# =========================
-# MÉTRICAS
-# =========================
-c1, c2, c3 = st.columns(3)
-c1.metric("💼 Investido até hoje", formato_real(saldo_atual))
-c2.metric("🎯 Meta", formato_real(META))
-c3.metric("⏳ Faltam", f"{meses} meses")
+    investimentos = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
+    investimentos.columns = ["DATA", "VALOR"]
+    investimentos["DATA"] = pd.to_datetime(investimentos["DATA"])
+    investimentos["VALOR"] = investimentos["VALOR"].apply(limpar_valor)
+    investimentos = investimentos.sort_values("DATA")
 
-st.divider()
+    investimentos["ANO"] = investimentos["DATA"].dt.year
+    investimentos["MES"] = investimentos["DATA"].dt.month
 
-# =========================
-# PROJEÇÃO
-# =========================
-datas_proj = []
-valores_proj = []
-saldo = saldo_atual
-data_base = inv_mensal["DATA"].iloc[-1]
+    inv_m = investimentos.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
+    inv_m["DATA"] = pd.to_datetime(inv_m["ANO"].astype(str) + "-" + inv_m["MES"].astype(str) + "-01")
+    inv_m = inv_m.sort_values("DATA")
+    inv_m["ACUMULADO"] = inv_m["VALOR"].cumsum()
 
-for i in range(1, meses + 1):
-    saldo = (saldo + media_aporte) * (1 + taxa)
-    datas_proj.append(data_base + pd.DateOffset(months=i))
-    valores_proj.append(saldo)
+    # =========================
+    # PARÂMETROS
+    # =========================
+    META = 40000
+    MESES = 12
+    JUROS = 0.01
 
-proj = pd.DataFrame({
-    "DATA": datas_proj,
-    "SALDO": valores_proj
-})
+    saldo_atual = inv_m["ACUMULADO"].iloc[-1]
+    data_base = inv_m["DATA"].iloc[-1]
 
-# =========================
-# GRÁFICO FINAL
-# =========================
-fig = go.Figure()
+    # =========================
+    # META COM JUROS
+    # =========================
+    falta = max(META - saldo_atual, 0)
+    aporte_base = falta / MESES
 
-fig.add_trace(go.Scatter(
-    x=inv_mensal["DATA"],
-    y=inv_mensal["ACUMULADO"],
-    mode="lines+markers",
-    name="Real"
-))
+    datas_meta, valores_meta = [], []
+    saldo = saldo_atual
 
-fig.add_trace(go.Scatter(
-    x=proj["DATA"],
-    y=proj["SALDO"],
-    mode="lines+markers",
-    name="Projeção 1% a.m.",
-    line=dict(dash="dash")
-))
+    for i in range(1, MESES + 1):
+        saldo = (saldo + aporte_base) * (1 + JUROS)
+        datas_meta.append(data_base + pd.DateOffset(months=i))
+        valores_meta.append(saldo)
 
-fig.add_hline(
-    y=META,
-    line_dash="dot",
-    line_color="gold",
-    annotation_text="🎯 Meta 40k",
-    annotation_position="top left"
-)
+    meta_df = pd.DataFrame({"DATA": datas_meta, "META": valores_meta})
 
-fig.update_layout(
-    height=450,
-    xaxis_title="Tempo",
-    yaxis_title="Patrimônio (R$)",
-    margin=dict(l=20, r=20, t=40, b=20)
-)
+    # =========================
+    # SIMULAÇÃO ATRASO 2 MESES
+    # =========================
+    datas_atraso, valores_atraso = [], []
+    saldo = saldo_atual
 
-st.subheader("📈 Caminho até os R$ 40.000")
-st.plotly_chart(fig, use_container_width=True)
+    for i in range(1, MESES + 1):
+        if i > 2:
+            saldo = (saldo + aporte_base) * (1 + JUROS)
+        else:
+            saldo = saldo * (1 + JUROS)
+        datas_atraso.append(data_base + pd.DateOffset(months=i))
+        valores_atraso.append(saldo)
+
+    atraso_df = pd.DataFrame({"DATA": datas_atraso, "ATRASO": valores_atraso})
+
+    # =========================
+    # INDICADOR VISUAL
+    # =========================
+    esperado_hoje = meta_df.iloc[0]["META"]
+    status = "🟢 Acima da meta" if saldo_atual >= esperado_hoje else "🔴 Abaixo da meta"
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💼 Atual", formato_real(saldo_atual))
+    c2.metric("🎯 Meta final", formato_real(META))
+    c3.metric("🚦 Status", status)
+
+    # =========================
+    # GRÁFICO FINAL
+    # =========================
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=inv_m["DATA"],
+        y=inv_m["ACUMULADO"],
+        name="Real",
+        mode="lines+markers",
+        line=dict(width=3)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=meta_df["DATA"],
+        y=meta_df["META"],
+        name="Meta com juros (1%)",
+        mode="lines",
+        line=dict(dash="dash", width=3)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=atraso_df["DATA"],
+        y=atraso_df["ATRASO"],
+        name="Atraso 2 meses",
+        mode="lines",
+        line=dict(dash="dot", width=2)
+    ))
+
+    fig.add_hline(y=META, line_dash="dot", line_color="gold")
+
+    fig.update_layout(
+        height=450,
+        xaxis_title="Tempo",
+        yaxis_title="Patrimônio (R$)"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
