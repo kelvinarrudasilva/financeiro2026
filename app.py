@@ -1,6 +1,3 @@
-# =========================
-# IMPORTS
-# =========================
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -34,6 +31,8 @@ st.markdown("""
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
+h1 { font-weight: 700; letter-spacing: 0.5px; }
+h2, h3 { font-weight: 600; }
 [data-testid="metric-container"] {
     background: linear-gradient(145deg, #16161d, #1b1b24);
     border-radius: 18px;
@@ -42,6 +41,8 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
 }
 [data-testid="metric-label"] { color: var(--muted); font-size: 0.85rem; }
 [data-testid="metric-value"] { font-size: 1.6rem; font-weight: 700; }
+section[data-testid="stSidebar"] { background-color: #0b0b10; border-right: 1px solid #1f1f2b; }
+hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 .quote-card {
     background: linear-gradient(145deg, #1b1b24, #16161d);
     padding: 18px;
@@ -57,27 +58,60 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE DIÁRIA
+# FRASE MOTIVADORA DIÁRIA
 # =========================
 FRASES_FALLBACK = [
-    "Pequenos passos hoje, liberdade amanhã.",
-    "Quem guarda, governa o próprio futuro.",
-    "Disciplina é riqueza invisível.",
+    "Grandes conquistas exigem dedicação.",
+    "O sucesso vem para quem não desiste.",
+    "A disciplina é o caminho para a liberdade financeira.",
+    "Pequenos passos todos os dias levam a grandes resultados.",
+    "Acredite no seu potencial e siga em frente.",
+    "Cada desafio é uma oportunidade disfarçada.",
 ]
 
-def get_quote():
+QUOTE_FILE = "quote.txt"
+
+def get_portuguese_quote():
     try:
-        r = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
-        j = r.json()
-        return j["dados"][0]["frase"]
+        res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
+        data = res.json()
+        frase = data.get("dados", [{}])[0].get("frase", "")
+        return frase if frase else random.choice(FRASES_FALLBACK)
     except:
         return random.choice(FRASES_FALLBACK)
 
-st.title("🔑 Virada Financeira")
-st.markdown(f'<div class="quote-card">{get_quote()}</div>', unsafe_allow_html=True)
+def load_or_update_quote():
+    hoje_str = date.today().isoformat()
+    quote = ""
+    if os.path.exists(QUOTE_FILE):
+        with open(QUOTE_FILE, "r", encoding="utf-8") as f:
+            try:
+                saved_date = f.readline().strip()
+                quote = f.readline().strip()
+            except:
+                saved_date = ""
+                quote = ""
+        if saved_date != hoje_str:
+            quote = get_portuguese_quote()
+            with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+                f.write(f"{hoje_str}\n{quote}")
+    else:
+        quote = get_portuguese_quote()
+        with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+            f.write(f"{hoje_str}\n{quote}")
+    return quote
+
+quote = load_or_update_quote()
 
 # =========================
-# PLANILHA
+# CABEÇALHO
+# =========================
+st.title("🔑 Virada Financeira")
+if quote:
+    st.markdown(f'<div class="quote-card">{quote}</div>', unsafe_allow_html=True)
+
+# =========================
+# PLANILHA GOOGLE DRIVE
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -86,27 +120,36 @@ PLANILHA_URL = (
 )
 
 # =========================
-# FUNÇÕES
+# FUNÇÕES AUXILIARES
 # =========================
 def limpar_valor(v):
-    if pd.isna(v): return 0.0
+    if pd.isna(v):
+        return 0.0
     if isinstance(v, str):
         v = v.replace("R$", "").replace(".", "").replace(",", ".").strip()
-        try: return float(v)
-        except: return 0.0
-    return float(v)
+        try:
+            return float(v)
+        except:
+            return 0.0
+    if isinstance(v, (int,float)):
+        return float(v)
+    return 0.0
 
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def gerar_cores(n):
+    cores = px.colors.qualitative.Vivid
+    return [cores[i % len(cores)] for i in range(n)]
+
 # =========================
-# LEITURA DAS ABAS
+# LEITURA PLANILHA
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
     df_invest = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
 except:
-    st.error("Erro ao carregar a planilha ou aba INVESTIMENTO.")
+    st.error("❌ Não foi possível carregar a planilha ou a aba INVESTIMENTO.")
     st.stop()
 
 # =========================
@@ -114,7 +157,6 @@ except:
 # =========================
 receitas = df.iloc[1:, 1:5].copy()
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
-
 despesas = df.iloc[1:, 6:10].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
@@ -122,6 +164,9 @@ for base in [receitas, despesas]:
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
     base.dropna(subset=["DATA"], inplace=True)
+    base["ANO"] = base["DATA"].dt.year
+    base["MES_NUM"] = base["DATA"].dt.month
+    base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
 # =========================
 # INVESTIMENTOS
@@ -130,13 +175,12 @@ df_invest["VALOR"] = df_invest["VALOR"].apply(limpar_valor)
 dinheiro_guardado = df_invest["VALOR"].sum()
 
 # =========================
-# VISÃO GERAL
+# MÉTRICAS PRINCIPAIS
 # =========================
 st.subheader("📌 Visão Geral")
-
 c1, c2, c3, c4 = st.columns(4)
-
 c1.metric("💵 Receita Total", formato_real(receitas["VALOR"].sum()))
 c2.metric("💸 Despesa Total", formato_real(despesas["VALOR"].sum()))
 c3.metric("⚖️ Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 c4.metric("💰 Dinheiro guardado", formato_real(dinheiro_guardado))
+st.divider()
