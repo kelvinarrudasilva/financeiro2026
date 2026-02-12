@@ -8,7 +8,7 @@ import random
 st.set_page_config(page_title="💰 Virada Financeira", page_icon="💰", layout="wide")
 
 # =========================
-# FRASE
+# FRASES
 # =========================
 FRASES = [
     "Disciplina constrói liberdade.",
@@ -43,55 +43,37 @@ def formato_real(v):
 
 def preparar_blindado(df):
     df = df.copy()
-
-    # Remove colunas totalmente vazias
     df = df.dropna(axis=1, how="all")
 
-    # Detecta colunas por tipo
-    colunas_data = []
-    colunas_valor = []
+    col_data = None
+    col_valor = None
+    col_desc = None
 
     for col in df.columns:
-        if pd.api.types.is_datetime64_any_dtype(df[col]):
-            colunas_data.append(col)
-        elif pd.api.types.is_numeric_dtype(df[col]):
-            colunas_valor.append(col)
+        tentativa_data = pd.to_datetime(df[col], errors="coerce")
+        if tentativa_data.notna().sum() > 3:
+            col_data = col
+            df[col] = tentativa_data
+            break
 
-    # Se não detectou data automática, tenta converter
-    if not colunas_data:
-        for col in df.columns:
-            tentativa = pd.to_datetime(df[col], errors="coerce")
-            if tentativa.notna().sum() > 3:
-                df[col] = tentativa
-                colunas_data.append(col)
-                break
+    for col in df.columns:
+        tentativa_valor = df[col].apply(limpar_valor)
+        if tentativa_valor.sum() != 0:
+            col_valor = col
+            df[col] = tentativa_valor
+            break
 
-    if not colunas_valor:
-        for col in df.columns:
-            tentativa = df[col].apply(limpar_valor)
-            if tentativa.sum() != 0:
-                df[col] = tentativa
-                colunas_valor.append(col)
-                break
+    outras = [c for c in df.columns if c not in [col_data, col_valor]]
+    if outras:
+        col_desc = outras[0]
 
-    if not colunas_data or not colunas_valor:
+    if not col_data or not col_valor:
         return pd.DataFrame()
 
-    data_col = colunas_data[0]
-    valor_col = colunas_valor[0]
-
-    # Assume que a descrição é a coluna entre elas
-    outras = [c for c in df.columns if c not in [data_col, valor_col]]
-    desc_col = outras[0] if outras else None
-
     base = pd.DataFrame()
-    base["DATA"] = pd.to_datetime(df[data_col], errors="coerce")
-    base["VALOR"] = df[valor_col].apply(limpar_valor)
-
-    if desc_col:
-        base["DESC"] = df[desc_col]
-    else:
-        base["DESC"] = "Sem descrição"
+    base["DATA"] = df[col_data]
+    base["VALOR"] = df[col_valor]
+    base["DESC"] = df[col_desc] if col_desc else "Sem descrição"
 
     base["ANO"] = base["DATA"].dt.year
     base["MES"] = base["DATA"].dt.month
@@ -103,14 +85,12 @@ def preparar_blindado(df):
 # =========================
 df = pd.read_excel(PLANILHA_URL)
 
-# Divide a planilha ao meio
 meio = len(df.columns) // 2
-
 receitas = preparar_blindado(df.iloc[:, :meio])
 despesas = preparar_blindado(df.iloc[:, meio:])
 
 if receitas.empty or despesas.empty:
-    st.error("Não foi possível identificar automaticamente as colunas.")
+    st.error("Não foi possível identificar corretamente as colunas da planilha.")
     st.stop()
 
 rec = receitas.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
@@ -123,7 +103,7 @@ ano_atual = datetime.now().year
 mes_atual = datetime.now().month
 proximo_mes = mes_atual + 1 if mes_atual < 12 else 1
 
-res_ano = resumo[resumo["ANO"]==ano_atual]
+res_ano = resumo[resumo["ANO"] == ano_atual]
 
 receita_ano = res_ano["VALOR_REC"].sum()
 despesa_ano = res_ano["VALOR_DES"].sum()
@@ -131,17 +111,19 @@ saldo_ano = res_ano["SALDO"].sum()
 
 saldo_restante = res_ano[res_ano["MES"] >= proximo_mes]["SALDO"].sum()
 
+# =========================
 # INVESTIMENTO
+# =========================
 try:
     inv_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO", header=None)
-    investido = limpar_valor(inv_df.iloc[13,1])
+    investido = limpar_valor(inv_df.iloc[13, 1])
 except:
     investido = 0
 
 # =========================
 # MÉTRICAS
 # =========================
-col1,col2,col3,col4,col5 = st.columns(5)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric("💵 Receita no Ano", formato_real(receita_ano))
 col2.metric("💸 Despesa no Ano", formato_real(despesa_ano))
@@ -150,15 +132,22 @@ col4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 col5.metric("📈 Investido", formato_real(investido))
 
 # =========================
-# GRÁFICO ANUAL
+# VISÃO GERAL ANUAL
 # =========================
 st.divider()
 st.subheader("📊 Visão Geral do Ano")
 
-resumo_anual = resumo[resumo["ANO"]==ano_atual].copy()
-resumo_anual["MES_NOME"] = resumo_anual["MES"].apply(
-    lambda x: datetime(1900,x,1).strftime("%b")
-)
+resumo_anual = res_ano.copy()
+resumo_anual = resumo_anual[resumo_anual["MES"].between(1, 12)]
+resumo_anual["MES"] = resumo_anual["MES"].astype(int)
+
+meses_dict = {
+    1:"Jan", 2:"Fev", 3:"Mar", 4:"Abr",
+    5:"Mai", 6:"Jun", 7:"Jul", 8:"Ago",
+    9:"Set",10:"Out",11:"Nov",12:"Dez"
+}
+
+resumo_anual["MES_NOME"] = resumo_anual["MES"].map(meses_dict)
 
 fig = go.Figure()
 
@@ -178,14 +167,14 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# DESPESAS PRÓXIMO MÊS
+# DESPESAS DO PRÓXIMO MÊS
 # =========================
 st.divider()
 st.subheader("💸 Despesas do Próximo Mês")
 
 despesas_mes = despesas[
-    (despesas["ANO"]==ano_atual) &
-    (despesas["MES"]==proximo_mes)
+    (despesas["ANO"] == ano_atual) &
+    (despesas["MES"] == proximo_mes)
 ]
 
 if not despesas_mes.empty:
