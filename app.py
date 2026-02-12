@@ -116,51 +116,76 @@ resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
 st.subheader("📊 Visão Geral do Ano")
 
 ano_atual = datetime.now().year
+mes_atual = datetime.now().month
+
 resumo_ano = resumo[resumo["ANO"] == ano_atual]
 
 total_receita_ano = resumo_ano["RECEITA"].sum()
 total_despesa_ano = resumo_ano["DESPESA"].sum()
 saldo_ano = resumo_ano["SALDO"].sum()
 
-mes_atual = datetime.now().month
-saldo_restante = resumo_ano[resumo_ano["MES_NUM"] >= mes_atual]["SALDO"].sum()
+# 🔥 SALDO RESTANTE A PARTIR DO PRÓXIMO MÊS
+saldo_restante = resumo_ano[
+    resumo_ano["MES_NUM"] > mes_atual
+]["SALDO"].sum()
 
+# Texto do período
+if mes_atual == 12:
+    periodo_txt = "Jan. próximo ano"
+else:
+    prox_mes_txt = datetime(ano_atual, mes_atual + 1, 1).strftime("%b").capitalize()
+    periodo_txt = f"{prox_mes_txt}. a Dez."
+
+# =========================
+# INVESTIMENTO
+# =========================
 try:
     investimento_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO", header=None)
     valor_investido = limpar_valor(investimento_df.iloc[13, 1])
 except:
     valor_investido = 0.0
 
-mes_inicio_txt = datetime(ano_atual, mes_atual, 1).strftime("%b").capitalize()
-
+# =========================
+# MÉTRICAS
+# =========================
 c1, c2, c3, c4, c5 = st.columns(5)
+
 c1.metric("💵 Receita no Ano", formato_real(total_receita_ano))
 c2.metric("💸 Despesa no Ano", formato_real(total_despesa_ano))
 c3.metric("🏦 Saldo no Ano", formato_real(saldo_ano))
-c4.metric(f"🧭 Saldo Restante ({mes_inicio_txt}. a Dez.)", formato_real(saldo_restante))
+c4.metric(f"🧭 Saldo Restante ({periodo_txt})", formato_real(saldo_restante))
 c5.metric("📈 Investido", formato_real(valor_investido))
 
 # =========================
-# GRÁFICO GERAL (FUNDO AUTO)
+# GRÁFICO GERAL
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
 
 fig = go.Figure()
 
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["RECEITA"],
-            name="Receita",
-            text=resumo["RECEITA"].apply(formato_real),
-            textposition="inside")
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["RECEITA"],
+    name="Receita",
+    text=resumo["RECEITA"].apply(formato_real),
+    textposition="inside"
+)
 
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["DESPESA"],
-            name="Despesa",
-            text=resumo["DESPESA"].apply(formato_real),
-            textposition="inside")
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["DESPESA"],
+    name="Despesa",
+    text=resumo["DESPESA"].apply(formato_real),
+    textposition="inside"
+)
 
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"],
-            name="Saldo",
-            text=resumo["SALDO"].apply(formato_real),
-            textposition="inside")
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    name="Saldo",
+    text=resumo["SALDO"].apply(formato_real),
+    textposition="inside"
+)
 
 fig.update_layout(
     template="plotly",
@@ -175,14 +200,15 @@ st.plotly_chart(fig, use_container_width=True)
 # =========================
 # SELECTBOX DINÂMICO
 # =========================
-if datetime.now().month == 12:
+if mes_atual == 12:
     prox_mes = 1
-    prox_ano = datetime.now().year + 1
+    prox_ano = ano_atual + 1
 else:
-    prox_mes = datetime.now().month + 1
-    prox_ano = datetime.now().year
+    prox_mes = mes_atual + 1
+    prox_ano = ano_atual
 
 mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
+
 lista_meses = resumo["MES_ANO"].tolist()
 idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses)-1
 
