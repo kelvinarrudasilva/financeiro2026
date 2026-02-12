@@ -14,26 +14,6 @@ st.set_page_config(
 )
 
 # =========================
-# DETECTAR TEMA
-# =========================
-theme = st.get_option("theme.base")
-
-if theme == "dark":
-    BG_GRAPH = "#1e1e1e"
-    GRID_COLOR = "#444"
-    FONT_COLOR = "#f5f5f5"
-    RECEITA_COLOR = "#22c55e"
-    DESPESA_COLOR = "#ef4444"
-    SALDO_COLOR = "#facc15"
-else:
-    BG_GRAPH = "#ffffff"
-    GRID_COLOR = "#dddddd"
-    FONT_COLOR = "#111111"
-    RECEITA_COLOR = "#16a34a"
-    DESPESA_COLOR = "#dc2626"
-    SALDO_COLOR = "#ca8a04"
-
-# =========================
 # FRASE
 # =========================
 FRASES = [
@@ -161,47 +141,33 @@ c4.metric(f"🧭 Saldo Restante ({mes_inicio_txt}. a Dez.)", formato_real(saldo_
 c5.metric("📈 Investido", formato_real(valor_investido))
 
 # =========================
-# GRÁFICO GERAL
+# GRÁFICO GERAL (FUNDO AUTO)
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
 
 fig = go.Figure()
 
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["RECEITA"],
-    name="Receita",
-    marker_color=RECEITA_COLOR,
-    text=resumo["RECEITA"].apply(formato_real),
-    textposition="inside"
-)
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["RECEITA"],
+            name="Receita",
+            text=resumo["RECEITA"].apply(formato_real),
+            textposition="inside")
 
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["DESPESA"],
-    name="Despesa",
-    marker_color=DESPESA_COLOR,
-    text=resumo["DESPESA"].apply(formato_real),
-    textposition="inside"
-)
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["DESPESA"],
+            name="Despesa",
+            text=resumo["DESPESA"].apply(formato_real),
+            textposition="inside")
 
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["SALDO"],
-    name="Saldo",
-    marker_color=SALDO_COLOR,
-    text=resumo["SALDO"].apply(formato_real),
-    textposition="inside"
-)
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"],
+            name="Saldo",
+            text=resumo["SALDO"].apply(formato_real),
+            textposition="inside")
 
 fig.update_layout(
+    template="plotly",
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
-    height=500,
-    plot_bgcolor=BG_GRAPH,
-    paper_bgcolor=BG_GRAPH,
-    font=dict(color=FONT_COLOR),
-    xaxis=dict(gridcolor=GRID_COLOR),
-    yaxis=dict(gridcolor=GRID_COLOR)
+    height=500
 )
 
 st.plotly_chart(fig, use_container_width=True)
@@ -250,16 +216,15 @@ if not des_mes.empty:
     fig2 = go.Figure(go.Bar(
         x=despesas_total["DESCRICAO"],
         y=despesas_total["VALOR"],
-        marker_color=DESPESA_COLOR,
         text=despesas_total["VALOR"].apply(formato_real),
         textposition="inside"
     ))
 
     fig2.update_layout(
-        height=500,
-        plot_bgcolor=BG_GRAPH,
-        paper_bgcolor=BG_GRAPH,
-        font=dict(color=FONT_COLOR)
+        template="plotly",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=500
     )
 
     st.plotly_chart(fig2, use_container_width=True)
