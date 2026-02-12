@@ -42,46 +42,29 @@ def limpar_valor(v):
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def detectar_colunas(df):
-    df.columns = df.columns.str.upper().str.strip()
-    data_col = [c for c in df.columns if "DATA" in c]
-    desc_col = [c for c in df.columns if "DESC" in c]
-    valor_col = [c for c in df.columns if "VALOR" in c]
-
-    if data_col and desc_col and valor_col:
-        return data_col[0], desc_col[0], valor_col[0]
-    else:
-        return None, None, None
-
 def preparar(df):
-    data_col, desc_col, valor_col = detectar_colunas(df)
-    if not data_col:
-        return pd.DataFrame()
+    df = df.copy()
+    df = df.iloc[:, :3]  # sempre pega 3 colunas
+    df.columns = ["DATA", "DESC", "VALOR"]
 
-    base = df[[data_col, desc_col, valor_col]].copy()
-    base.columns = ["DATA", "DESC", "VALOR"]
+    df["VALOR"] = df["VALOR"].apply(limpar_valor)
+    df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
 
-    base["VALOR"] = base["VALOR"].apply(limpar_valor)
-    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+    df["ANO"] = df["DATA"].dt.year
+    df["MES"] = df["DATA"].dt.month
 
-    base["ANO"] = base["DATA"].dt.year
-    base["MES"] = base["DATA"].dt.month
-
-    return base.dropna(subset=["DATA"])
+    return df.dropna(subset=["DATA"])
 
 # =========================
 # LEITURA
 # =========================
 df = pd.read_excel(PLANILHA_URL)
 
-meio = len(df.columns) // 2
-receitas = preparar(df.iloc[:, :meio])
-despesas = preparar(df.iloc[:, meio:])
+# Receita = primeiras 3 colunas
+receitas = preparar(df.iloc[:, 0:3])
 
-# Segurança extra
-if receitas.empty or despesas.empty:
-    st.error("Erro ao identificar colunas DATA / DESC / VALOR na planilha.")
-    st.stop()
+# Despesa = últimas 3 colunas
+despesas = preparar(df.iloc[:, 3:6])
 
 rec = receitas.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
 des = despesas.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
@@ -99,10 +82,10 @@ receita_ano = res_ano["VALOR_REC"].sum()
 despesa_ano = res_ano["VALOR_DES"].sum()
 saldo_ano = res_ano["SALDO"].sum()
 
-# 🔥 SALDO RESTANTE baseado no PRÓXIMO MÊS
+# 🔥 saldo baseado no PRÓXIMO mês
 saldo_restante = res_ano[res_ano["MES"] >= proximo_mes]["SALDO"].sum()
 
-# INVESTIMENTO
+# INVESTIMENTO (linha 14 coluna B)
 try:
     inv_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO", header=None)
     investido = limpar_valor(inv_df.iloc[13,1])
@@ -121,7 +104,7 @@ col4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 col5.metric("📈 Investido", formato_real(investido))
 
 # =========================
-# VISÃO GERAL ANUAL
+# VISÃO GERAL DO ANO
 # =========================
 st.divider()
 st.subheader("📊 Visão Geral do Ano")
@@ -149,7 +132,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# DESPESAS DO MÊS PRE-SELECIONADO
+# DESPESAS DO PRÓXIMO MÊS
 # =========================
 st.divider()
 st.subheader("💸 Despesas do Próximo Mês")
