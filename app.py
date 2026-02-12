@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # =========================
-# ESTILO PREMIUM + FRASE
+# ESTILO
 # =========================
 st.markdown("""
 <style>
@@ -31,18 +31,12 @@ st.markdown("""
 }
 html, body, [data-testid="stApp"] { background-color: var(--bg); }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
-h1 { font-weight: 700; letter-spacing: 0.5px; }
-h2, h3 { font-weight: 600; }
 [data-testid="metric-container"] {
     background: linear-gradient(145deg, #16161d, #1b1b24);
     border-radius: 18px;
     padding: 18px;
     border: 1px solid #1f1f2b;
 }
-[data-testid="metric-label"] { color: var(--muted); font-size: 0.85rem; }
-[data-testid="metric-value"] { font-size: 1.6rem; font-weight: 700; }
-section[data-testid="stSidebar"] { background-color: #0b0b10; border-right: 1px solid #1f1f2b; }
-hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 .quote-card {
     background: linear-gradient(145deg, #1b1b24, #16161d);
     padding: 18px;
@@ -58,13 +52,13 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA
+# FRASE DIÁRIA
 # =========================
 FRASES_FALLBACK = [
     "Grandes conquistas exigem dedicação.",
-    "O sucesso vem para quem não desiste.",
     "Disciplina constrói liberdade.",
-    "Pequenos passos, grandes resultados."
+    "Pequenos passos geram grandes resultados.",
+    "Você não está atrasado. Está construindo.",
 ]
 
 QUOTE_FILE = "quote.txt"
@@ -115,16 +109,44 @@ def limpar_valor(v):
             return float(v)
         except:
             return 0.0
-    if isinstance(v, (int,float)):
+    if isinstance(v, (int, float)):
         return float(v)
     return 0.0
 
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def gerar_cores(n):
-    cores = px.colors.qualitative.Vivid
-    return [cores[i % len(cores)] for i in range(n)]
+def normalizar_colunas(df):
+    df.columns = (
+        df.columns
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .str.normalize("NFKD")
+        .str.encode("ascii", errors="ignore")
+        .str.decode("utf-8")
+    )
+    return df
+
+def preparar_base(base):
+    base = normalizar_colunas(base)
+
+    col_data = [c for c in base.columns if "DATA" in c][0]
+    col_valor = [c for c in base.columns if "VALOR" in c][0]
+    col_desc = [c for c in base.columns if "NOME" in c or "DESCR" in c][0]
+
+    base = base[[col_data, col_desc, col_valor]].copy()
+    base.columns = ["DATA", "DESCRICAO", "VALOR"]
+
+    base["VALOR"] = base["VALOR"].apply(limpar_valor)
+    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+    base = base.dropna(subset=["DATA"])
+
+    base["ANO"] = base["DATA"].dt.year
+    base["MES_NUM"] = base["DATA"].dt.month
+    base["MES"] = base["DATA"].dt.strftime("%b").str.upper()
+
+    return base
 
 # =========================
 # LEITURA
@@ -132,48 +154,27 @@ def gerar_cores(n):
 try:
     df = pd.read_excel(PLANILHA_URL)
 except:
-    st.error("❌ Não foi possível carregar a planilha.")
+    st.error("Erro ao carregar planilha.")
     st.stop()
 
-if df.shape[1] < 8:
-    st.error("Estrutura da planilha insuficiente.")
-    st.stop()
+df = normalizar_colunas(df)
 
-# =========================
-# DETECÇÃO AUTOMÁTICA DOS BLOCOS
-# =========================
-def extrair_bloco(inicio):
-    bloco = df.iloc[1:, inicio:inicio+4].copy()
-    bloco = bloco.iloc[:, :4]
-    bloco.columns = ["DATA","MES","DESCRICAO","VALOR"]
-    return bloco
+# Divide automaticamente em duas metades
+meio = len(df.columns) // 2
+df_rec = df.iloc[:, :meio].copy()
+df_des = df.iloc[:, meio:].copy()
 
-receitas = extrair_bloco(1)
-despesas = extrair_bloco(5)
-
-# =========================
-# TRATAMENTO
-# =========================
-for base in [receitas, despesas]:
-    base["VALOR"] = base["VALOR"].apply(limpar_valor)
-    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
-    base.dropna(subset=["DATA"], inplace=True)
-    base["ANO"] = base["DATA"].dt.year
-    base["MES_NUM"] = base["DATA"].dt.month
-    base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
+receitas = preparar_base(df_rec)
+despesas = preparar_base(df_des)
 
 # =========================
 # MÉTRICAS
 # =========================
 st.subheader("📌 Visão Geral")
 c1, c2, c3 = st.columns(3)
-
-total_rec = receitas["VALOR"].sum()
-total_des = despesas["VALOR"].sum()
-
-c1.metric("💵 Receita Total", formato_real(total_rec))
-c2.metric("💸 Despesa Total", formato_real(total_des))
-c3.metric("⚖️ Saldo Geral", formato_real(total_rec - total_des))
+c1.metric("Receita Total", formato_real(receitas["VALOR"].sum()))
+c2.metric("Despesa Total", formato_real(despesas["VALOR"].sum()))
+c3.metric("Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
 
 st.divider()
 
@@ -186,56 +187,55 @@ des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum()
 resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
-resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
+resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
 
 # =========================
-# BALANÇO FINANCEIRO
+# GRÁFICO PRINCIPAL
 # =========================
-expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
-hoje = datetime.now()
-
-if expandir:
-    resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
-else:
-    meses_a_mostrar = []
-    for i in range(4):
-        mes = hoje.month + i
-        ano = hoje.year
-        if mes > 12:
-            mes -= 12
-            ano += 1
-        meses_a_mostrar.append((ano, mes))
-    resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
-
-if resumo_plot.empty:
-    resumo_plot = resumo.copy()
-
 st.subheader("📊 Balanço Financeiro")
 
 fig = go.Figure()
-cores_saldo = ["#3b82f6" if s>=0 else "#ef4444" for s in resumo_plot["SALDO"]]
 
 fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["RECEITA"],
+    x=resumo["MES_ANO"],
+    y=resumo["RECEITA"],
     name="Receita",
     marker_color="#22c55e"
 ))
 
 fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["DESPESA"],
+    x=resumo["MES_ANO"],
+    y=resumo["DESPESA"],
     name="Despesa",
     marker_color="#ef4444"
 ))
 
-fig.add_trace(go.Bar(
-    x=resumo_plot["MES_ANO"].str.upper(),
-    y=resumo_plot["SALDO"],
+fig.add_trace(go.Scatter(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    mode="lines+markers",
     name="Saldo",
-    marker_color=cores_saldo
+    line=dict(color="#facc15", width=3)
 ))
 
-fig.update_layout(height=450, barmode='group')
+fig.update_layout(barmode="group", height=450)
 st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# SELETOR DE MÊS
+# =========================
+mes_sel = st.selectbox("Escolha o mês", resumo["MES_ANO"].tolist())
+
+mes_txt, ano_sel = mes_sel.split("/")
+ano_sel = int(ano_sel)
+
+rec_mes = receitas[(receitas["ANO"]==ano_sel) & (receitas["MES"]==mes_txt)]
+des_mes = despesas[(despesas["ANO"]==ano_sel) & (despesas["MES"]==mes_txt)]
+
+st.subheader(f"📆 Detalhamento — {mes_sel}")
+
+d1, d2, d3 = st.columns(3)
+d1.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
+d2.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
+d3.metric("Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
