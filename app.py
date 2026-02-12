@@ -152,7 +152,7 @@ c6.metric("💎 Total em Construção", formato_real(patrimonio_em_construcao))
 st.markdown("---")
 
 # =========================
-# GRÁFICO GERAL COM VALORES DENTRO
+# GRÁFICO GERAL
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
 
@@ -190,19 +190,34 @@ fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
     uniformtext_minsize=8,
-    uniformtext_mode='hide',
+    uniformtext_mode="hide",
     height=500
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# SELECTBOX DINÂMICO
+# SELECTBOX DINÂMICO (PRÓXIMO MÊS)
 # =========================
 st.markdown("---")
 
+if mes_atual == 12:
+    prox_mes = 1
+    prox_ano = ano_atual + 1
+else:
+    prox_mes = mes_atual + 1
+    prox_ano = ano_atual
+
+mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
+
 lista_meses = resumo["MES_ANO"].tolist()
-mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=len(lista_meses)-1)
+
+if mes_ref in lista_meses:
+    idx_default = lista_meses.index(mes_ref)
+else:
+    idx_default = len(lista_meses) - 1
+
+mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
 
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
