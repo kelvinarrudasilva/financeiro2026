@@ -58,20 +58,18 @@ hr { border: none; height: 1px; background: #1f1f2b; margin: 2rem 0; }
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE MOTIVADORA DIÁRIA
+# FRASE MOTIVADORA
 # =========================
 FRASES_FALLBACK = [
     "Grandes conquistas exigem dedicação.",
     "O sucesso vem para quem não desiste.",
-    "A disciplina é o caminho para a liberdade financeira.",
-    "Pequenos passos todos os dias levam a grandes resultados.",
-    "Acredite no seu potencial e siga em frente.",
-    "Cada desafio é uma oportunidade disfarçada.",
+    "Disciplina constrói liberdade.",
+    "Pequenos passos, grandes resultados."
 ]
 
 QUOTE_FILE = "quote.txt"
 
-def get_portuguese_quote():
+def get_quote():
     try:
         res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
         data = res.json()
@@ -81,34 +79,23 @@ def get_portuguese_quote():
         return random.choice(FRASES_FALLBACK)
 
 def load_or_update_quote():
-    hoje_str = date.today().isoformat()
-    quote = ""
+    hoje = date.today().isoformat()
     if os.path.exists(QUOTE_FILE):
         with open(QUOTE_FILE, "r", encoding="utf-8") as f:
-            try:
-                saved_date = f.readline().strip()
-                quote = f.readline().strip()
-            except:
-                saved_date = ""
-                quote = ""
-        if saved_date != hoje_str:
-            quote = get_portuguese_quote()
-            with open(QUOTE_FILE, "w", encoding="utf-8") as f:
-                f.write(f"{hoje_str}\n{quote}")
-    else:
-        quote = get_portuguese_quote()
-        with open(QUOTE_FILE, "w", encoding="utf-8") as f:
-            f.write(f"{hoje_str}\n{quote}")
-    return quote
-
-quote = load_or_update_quote()
+            saved = f.readline().strip()
+            frase = f.readline().strip()
+        if saved == hoje:
+            return frase
+    frase = get_quote()
+    with open(QUOTE_FILE, "w", encoding="utf-8") as f:
+        f.write(f"{hoje}\n{frase}")
+    return frase
 
 st.title("🔑 Virada Financeira")
-if quote:
-    st.markdown(f'<div class="quote-card">{quote}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="quote-card">{load_or_update_quote()}</div>', unsafe_allow_html=True)
 
 # =========================
-# PLANILHA GOOGLE DRIVE
+# PLANILHA
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -117,7 +104,7 @@ PLANILHA_URL = (
 )
 
 # =========================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES
 # =========================
 def limpar_valor(v):
     if pd.isna(v):
@@ -140,7 +127,7 @@ def gerar_cores(n):
     return [cores[i % len(cores)] for i in range(n)]
 
 # =========================
-# LEITURA PLANILHA
+# LEITURA
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
@@ -148,15 +135,25 @@ except:
     st.error("❌ Não foi possível carregar a planilha.")
     st.stop()
 
-# =========================
-# BASES (CORRIGIDO PARA 9 COLUNAS)
-# =========================
-receitas = df.iloc[1:, 1:5].copy()
-receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
+if df.shape[1] < 8:
+    st.error("Estrutura da planilha insuficiente.")
+    st.stop()
 
-despesas = df.iloc[1:, 5:9].copy()  # <<< CORREÇÃO AQUI
-despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
+# =========================
+# DETECÇÃO AUTOMÁTICA DOS BLOCOS
+# =========================
+def extrair_bloco(inicio):
+    bloco = df.iloc[1:, inicio:inicio+4].copy()
+    bloco = bloco.iloc[:, :4]
+    bloco.columns = ["DATA","MES","DESCRICAO","VALOR"]
+    return bloco
 
+receitas = extrair_bloco(1)
+despesas = extrair_bloco(5)
+
+# =========================
+# TRATAMENTO
+# =========================
 for base in [receitas, despesas]:
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
@@ -166,5 +163,79 @@ for base in [receitas, despesas]:
     base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
 
 # =========================
-# (RESTO DO APP PERMANECE 100% IGUAL)
+# MÉTRICAS
 # =========================
+st.subheader("📌 Visão Geral")
+c1, c2, c3 = st.columns(3)
+
+total_rec = receitas["VALOR"].sum()
+total_des = despesas["VALOR"].sum()
+
+c1.metric("💵 Receita Total", formato_real(total_rec))
+c2.metric("💸 Despesa Total", formato_real(total_des))
+c3.metric("⚖️ Saldo Geral", formato_real(total_rec - total_des))
+
+st.divider()
+
+# =========================
+# RESUMO MENSAL
+# =========================
+rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"RECEITA"})
+des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"DESPESA"})
+
+resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
+resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
+resumo = resumo.sort_values(["ANO","MES_NUM"])
+resumo["MES_ANO"] = (resumo["MES"] + "/" + resumo["ANO"].astype(str)).str.lower()
+resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
+
+# =========================
+# BALANÇO FINANCEIRO
+# =========================
+expandir = st.toggle("🔎 Expandir gráfico completo", value=False)
+hoje = datetime.now()
+
+if expandir:
+    resumo_plot = resumo[resumo["ANO"] == hoje.year].copy()
+else:
+    meses_a_mostrar = []
+    for i in range(4):
+        mes = hoje.month + i
+        ano = hoje.year
+        if mes > 12:
+            mes -= 12
+            ano += 1
+        meses_a_mostrar.append((ano, mes))
+    resumo_plot = resumo[resumo.apply(lambda x: (x["ANO"], x["MES_NUM"]) in meses_a_mostrar, axis=1)].copy()
+
+if resumo_plot.empty:
+    resumo_plot = resumo.copy()
+
+st.subheader("📊 Balanço Financeiro")
+
+fig = go.Figure()
+cores_saldo = ["#3b82f6" if s>=0 else "#ef4444" for s in resumo_plot["SALDO"]]
+
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["RECEITA"],
+    name="Receita",
+    marker_color="#22c55e"
+))
+
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["DESPESA"],
+    name="Despesa",
+    marker_color="#ef4444"
+))
+
+fig.add_trace(go.Bar(
+    x=resumo_plot["MES_ANO"].str.upper(),
+    y=resumo_plot["SALDO"],
+    name="Saldo",
+    marker_color=cores_saldo
+))
+
+fig.update_layout(height=450, barmode='group')
+st.plotly_chart(fig, use_container_width=True)
