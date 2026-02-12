@@ -135,19 +135,7 @@ try:
 except:
     valor_investido = 0.0
 
-# =========================
-# PATRIMÔNIO
-# =========================
 patrimonio_em_construcao = saldo_restante + valor_investido
-
-if mes_atual > 1:
-    saldo_mes_anterior = resumo_ano[
-        resumo_ano["MES_NUM"] == mes_atual - 1
-    ]["SALDO"].sum()
-else:
-    saldo_mes_anterior = 0
-
-delta_total = patrimonio_em_construcao - (valor_investido + saldo_mes_anterior)
 
 # =========================
 # MÉTRICAS
@@ -159,81 +147,62 @@ c2.metric("💸 Despesa no Ano", formato_real(total_despesa_ano))
 c3.metric("🏦 Saldo no Ano", formato_real(saldo_ano))
 c4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 c5.metric("📈 Investido", formato_real(valor_investido))
-c6.metric("💎 Total em Construção", formato_real(patrimonio_em_construcao), delta=formato_real(delta_total))
+c6.metric("💎 Total em Construção", formato_real(patrimonio_em_construcao))
 
 st.markdown("---")
 
 # =========================
-# META
-# =========================
-st.subheader("📊 Meta Financeira")
-
-meta = st.number_input("Defina sua meta:", value=50000.0, step=1000.0)
-
-progresso = patrimonio_em_construcao / meta if meta > 0 else 0
-progresso = min(progresso, 1.0)
-
-st.progress(progresso)
-st.write(f"{formato_real(patrimonio_em_construcao)} de {formato_real(meta)}")
-
-st.markdown("---")
-
-# =========================
-# SIMULADOR
-# =========================
-st.subheader("🔥 Simulador de Aporte Extra")
-
-extra = st.slider("Quanto guardaria a mais por mês?", 0, 5000, 500, step=100)
-
-meses_restantes = 12 - mes_atual
-impacto = extra * meses_restantes
-novo_total = patrimonio_em_construcao + impacto
-
-st.write(f"Impacto até Dezembro: {formato_real(impacto)}")
-st.success(f"Novo total projetado: {formato_real(novo_total)}")
-
-st.markdown("---")
-
-# =========================
-# GRÁFICO GERAL
+# GRÁFICO GERAL COM VALORES DENTRO
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
 
 fig = go.Figure()
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["RECEITA"], name="Receita")
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["DESPESA"], name="Despesa")
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"], name="Saldo")
+
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["RECEITA"],
+    name="Receita",
+    text=resumo["RECEITA"].apply(formato_real),
+    textposition="inside"
+)
+
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["DESPESA"],
+    name="Despesa",
+    text=resumo["DESPESA"].apply(formato_real),
+    textposition="inside"
+)
+
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    name="Saldo",
+    text=resumo["SALDO"].apply(formato_real),
+    textposition="inside"
+)
 
 fig.update_layout(
     template=tema,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
+    uniformtext_minsize=8,
+    uniformtext_mode='hide',
     height=500
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# SELECTBOX DINÂMICO (MANTIDO)
+# SELECTBOX DINÂMICO
 # =========================
 st.markdown("---")
 
-if mes_atual == 12:
-    prox_mes = 1
-    prox_ano = ano_atual + 1
-else:
-    prox_mes = mes_atual + 1
-    prox_ano = ano_atual
-
-mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
-
 lista_meses = resumo["MES_ANO"].tolist()
-idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses)-1
-
-mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
+mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=len(lista_meses)-1)
 
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
