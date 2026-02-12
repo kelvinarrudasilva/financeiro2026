@@ -6,16 +6,14 @@ from datetime import datetime, date
 import requests
 import random
 import os
-import numpy as np
 
 # =========================
-# CONFIGURAÇÃO GERAL
+# CONFIGURAÇÃO
 # =========================
 st.set_page_config(
     page_title="💰 Virada Financeira",
     page_icon="🗝️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
 # =========================
@@ -23,17 +21,16 @@ st.set_page_config(
 # =========================
 st.markdown("""
 <style>
-:root {
-    --bg: #0e0e11;
-    --card: #16161d;
-    --muted: #9ca3af;
-    --accent: #22c55e;
+html, body, [data-testid="stApp"] {
+    background-color: #0e0e11;
 }
-html, body, [data-testid="stApp"] { background-color: var(--bg); }
-.block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1300px; }
+.block-container {
+    padding-top: 2rem;
+    max-width: 1300px;
+}
 [data-testid="metric-container"] {
     background: linear-gradient(145deg, #16161d, #1b1b24);
-    border-radius: 18px;
+    border-radius: 16px;
     padding: 18px;
     border: 1px solid #1f1f2b;
 }
@@ -43,7 +40,7 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
     border-radius: 16px;
     border: 1px solid #1f1f2b;
     margin-bottom: 1.5rem;
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     color: #9ca3af;
     font-style: italic;
     text-align: center;
@@ -54,42 +51,18 @@ html, body, [data-testid="stApp"] { background-color: var(--bg); }
 # =========================
 # FRASE DIÁRIA
 # =========================
-FRASES_FALLBACK = [
-    "Grandes conquistas exigem dedicação.",
+FRASES = [
     "Disciplina constrói liberdade.",
     "Pequenos passos geram grandes resultados.",
-    "Você não está atrasado. Está construindo.",
+    "Consistência vence motivação.",
+    "Você está construindo algo grande."
 ]
 
-QUOTE_FILE = "quote.txt"
-
-def get_quote():
-    try:
-        res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
-        data = res.json()
-        frase = data.get("dados", [{}])[0].get("frase", "")
-        return frase if frase else random.choice(FRASES_FALLBACK)
-    except:
-        return random.choice(FRASES_FALLBACK)
-
-def load_or_update_quote():
-    hoje = date.today().isoformat()
-    if os.path.exists(QUOTE_FILE):
-        with open(QUOTE_FILE, "r", encoding="utf-8") as f:
-            saved = f.readline().strip()
-            frase = f.readline().strip()
-        if saved == hoje:
-            return frase
-    frase = get_quote()
-    with open(QUOTE_FILE, "w", encoding="utf-8") as f:
-        f.write(f"{hoje}\n{frase}")
-    return frase
-
 st.title("🔑 Virada Financeira")
-st.markdown(f'<div class="quote-card">{load_or_update_quote()}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="quote-card">{random.choice(FRASES)}</div>', unsafe_allow_html=True)
 
 # =========================
-# PLANILHA
+# PLANILHA GOOGLE
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -98,7 +71,7 @@ PLANILHA_URL = (
 )
 
 # =========================
-# FUNÇÕES
+# FUNÇÕES AUXILIARES
 # =========================
 def limpar_valor(v):
     if pd.isna(v):
@@ -109,17 +82,14 @@ def limpar_valor(v):
             return float(v)
         except:
             return 0.0
-    if isinstance(v, (int, float)):
-        return float(v)
-    return 0.0
+    return float(v)
 
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def normalizar_colunas(df):
     df.columns = (
-        df.columns
-        .astype(str)
+        df.columns.astype(str)
         .str.strip()
         .str.upper()
         .str.normalize("NFKD")
@@ -149,7 +119,7 @@ def preparar_base(base):
     return base
 
 # =========================
-# LEITURA
+# LEITURA DA PLANILHA
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
@@ -159,16 +129,12 @@ except:
 
 df = normalizar_colunas(df)
 
-# Divide automaticamente em duas metades
 meio = len(df.columns) // 2
-df_rec = df.iloc[:, :meio].copy()
-df_des = df.iloc[:, meio:].copy()
-
-receitas = preparar_base(df_rec)
-despesas = preparar_base(df_des)
+receitas = preparar_base(df.iloc[:, :meio].copy())
+despesas = preparar_base(df.iloc[:, meio:].copy())
 
 # =========================
-# MÉTRICAS
+# MÉTRICAS GERAIS
 # =========================
 st.subheader("📌 Visão Geral")
 c1, c2, c3 = st.columns(3)
@@ -191,42 +157,29 @@ resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["
 resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
 
 # =========================
-# GRÁFICO PRINCIPAL
+# SELECTBOX DINÂMICO (PRÓXIMO MÊS)
 # =========================
-st.subheader("📊 Balanço Financeiro")
+hoje = datetime.now()
+if hoje.month == 12:
+    prox_mes = 1
+    prox_ano = hoje.year + 1
+else:
+    prox_mes = hoje.month + 1
+    prox_ano = hoje.year
 
-fig = go.Figure()
+mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
+lista_meses = resumo["MES_ANO"].tolist()
 
-fig.add_trace(go.Bar(
-    x=resumo["MES_ANO"],
-    y=resumo["RECEITA"],
-    name="Receita",
-    marker_color="#22c55e"
-))
+if mes_ref in lista_meses:
+    idx_default = lista_meses.index(mes_ref)
+else:
+    idx_default = len(lista_meses)-1 if lista_meses else 0
 
-fig.add_trace(go.Bar(
-    x=resumo["MES_ANO"],
-    y=resumo["DESPESA"],
-    name="Despesa",
-    marker_color="#ef4444"
-))
-
-fig.add_trace(go.Scatter(
-    x=resumo["MES_ANO"],
-    y=resumo["SALDO"],
-    mode="lines+markers",
-    name="Saldo",
-    line=dict(color="#facc15", width=3)
-))
-
-fig.update_layout(barmode="group", height=450)
-st.plotly_chart(fig, use_container_width=True)
+mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
 
 # =========================
-# SELETOR DE MÊS
+# DETALHAMENTO
 # =========================
-mes_sel = st.selectbox("Escolha o mês", resumo["MES_ANO"].tolist())
-
 mes_txt, ano_sel = mes_sel.split("/")
 ano_sel = int(ano_sel)
 
@@ -239,3 +192,38 @@ d1, d2, d3 = st.columns(3)
 d1.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
 d2.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
 d3.metric("Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+
+# =========================
+# GRÁFICO GERAL DE DESPESAS
+# =========================
+st.divider()
+st.subheader("💸 Todas as Despesas (visão geral)")
+
+if not despesas.empty:
+
+    despesas_total = (
+        despesas
+        .groupby("DESCRICAO", as_index=False)["VALOR"]
+        .sum()
+        .sort_values("VALOR", ascending=False)
+    )
+
+    fig_despesas = px.bar(
+        despesas_total,
+        x="VALOR",
+        y="DESCRICAO",
+        orientation="h",
+        text=despesas_total["VALOR"].apply(formato_real),
+        title="Total gasto por categoria"
+    )
+
+    fig_despesas.update_traces(textposition="inside")
+    fig_despesas.update_layout(
+        height=500,
+        yaxis=dict(autorange="reversed")
+    )
+
+    st.plotly_chart(fig_despesas, use_container_width=True)
+
+else:
+    st.info("Nenhuma despesa encontrada.")
