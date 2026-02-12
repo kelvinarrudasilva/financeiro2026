@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, date
+import requests
 import random
+import os
 
 # =========================
-# CONFIGURAÇÃO
+# CONFIGURAÇÃO GERAL
 # =========================
 st.set_page_config(
     page_title="💰 Virada Financeira",
@@ -47,7 +49,7 @@ html, body, [data-testid="stApp"] {
 """, unsafe_allow_html=True)
 
 # =========================
-# FRASE
+# FRASE DIÁRIA
 # =========================
 FRASES = [
     "Disciplina constrói liberdade.",
@@ -60,7 +62,7 @@ st.title("🔑 Virada Financeira")
 st.markdown(f'<div class="quote-card">{random.choice(FRASES)}</div>', unsafe_allow_html=True)
 
 # =========================
-# PLANILHA
+# PLANILHA GOOGLE
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -132,6 +134,17 @@ receitas = preparar_base(df.iloc[:, :meio].copy())
 despesas = preparar_base(df.iloc[:, meio:].copy())
 
 # =========================
+# MÉTRICAS GERAIS
+# =========================
+st.subheader("📌 Visão Geral")
+c1, c2, c3 = st.columns(3)
+c1.metric("Receita Total", formato_real(receitas["VALOR"].sum()))
+c2.metric("Despesa Total", formato_real(despesas["VALOR"].sum()))
+c3.metric("Saldo Geral", formato_real(receitas["VALOR"].sum() - despesas["VALOR"].sum()))
+
+st.divider()
+
+# =========================
 # RESUMO MENSAL
 # =========================
 rec_m = receitas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum().rename(columns={"VALOR":"RECEITA"})
@@ -144,10 +157,41 @@ resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["
 resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
 
 # =========================
-# SELECTBOX DINÂMICO
+# GRÁFICO GERAL MENSAL
+# =========================
+st.subheader("📊 Balanço Financeiro")
+
+fig = go.Figure()
+
+fig.add_trace(go.Bar(
+    x=resumo["MES_ANO"],
+    y=resumo["RECEITA"],
+    name="Receita",
+    marker_color="#22c55e"
+))
+
+fig.add_trace(go.Bar(
+    x=resumo["MES_ANO"],
+    y=resumo["DESPESA"],
+    name="Despesa",
+    marker_color="#ef4444"
+))
+
+fig.add_trace(go.Scatter(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    mode="lines+markers",
+    name="Saldo",
+    line=dict(color="#facc15", width=3)
+))
+
+fig.update_layout(barmode="group", height=450)
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# SELECTBOX (PRÓXIMO MÊS AUTOMÁTICO)
 # =========================
 hoje = datetime.now()
-
 if hoje.month == 12:
     prox_mes = 1
     prox_ano = hoje.year + 1
@@ -158,10 +202,7 @@ else:
 mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
 lista_meses = resumo["MES_ANO"].tolist()
 
-if mes_ref in lista_meses:
-    idx_default = lista_meses.index(mes_ref)
-else:
-    idx_default = len(lista_meses)-1 if lista_meses else 0
+idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses)-1
 
 mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
 
@@ -175,14 +216,14 @@ rec_mes = receitas[(receitas["ANO"]==ano_sel) & (receitas["MES"]==mes_txt)]
 des_mes = despesas[(despesas["ANO"]==ano_sel) & (despesas["MES"]==mes_txt)]
 
 # =========================
-# MÉTRICAS DO MÊS
+# RESUMO DO MÊS
 # =========================
 st.subheader(f"📆 Resumo — {mes_sel}")
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
-c2.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
-c3.metric("Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+d1, d2, d3 = st.columns(3)
+d1.metric("Receitas", formato_real(rec_mes["VALOR"].sum()))
+d2.metric("Despesas", formato_real(des_mes["VALOR"].sum()))
+d3.metric("Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
 # =========================
 # GRÁFICO DESPESAS DO MÊS SELECIONADO
@@ -199,7 +240,7 @@ if not des_mes.empty:
         .sort_values("VALOR", ascending=False)
     )
 
-    fig = px.bar(
+    fig2 = px.bar(
         despesas_mes,
         x="VALOR",
         y="DESCRICAO",
@@ -208,10 +249,10 @@ if not des_mes.empty:
         title=f"Gastos por categoria — {mes_sel}"
     )
 
-    fig.update_traces(textposition="inside")
-    fig.update_layout(height=500, yaxis=dict(autorange="reversed"))
+    fig2.update_traces(textposition="inside")
+    fig2.update_layout(height=500, yaxis=dict(autorange="reversed"))
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True)
 
 else:
     st.info("Nenhuma despesa registrada nesse mês.")
