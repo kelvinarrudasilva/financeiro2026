@@ -9,7 +9,7 @@ import random
 # =========================
 st.set_page_config(
     page_title="💰 Virada Financeira",
-    page_icon="💸",
+    page_icon="💎",
     layout="wide"
 )
 
@@ -23,7 +23,7 @@ FRASES = [
     "Você está construindo algo grande."
 ]
 
-st.title("🔑 Virada Financeira")
+st.title("💎 Virada Financeira")
 st.caption(random.choice(FRASES))
 
 # =========================
@@ -111,10 +111,8 @@ resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["
 resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
 
 # =========================
-# VISÃO GERAL DO ANO
+# ANO ATUAL
 # =========================
-st.subheader("📊 Visão Geral do Ano")
-
 ano_atual = datetime.now().year
 mes_atual = datetime.now().month
 
@@ -124,17 +122,9 @@ total_receita_ano = resumo_ano["RECEITA"].sum()
 total_despesa_ano = resumo_ano["DESPESA"].sum()
 saldo_ano = resumo_ano["SALDO"].sum()
 
-# 🔥 SALDO RESTANTE A PARTIR DO PRÓXIMO MÊS
 saldo_restante = resumo_ano[
     resumo_ano["MES_NUM"] > mes_atual
 ]["SALDO"].sum()
-
-# Texto do período
-if mes_atual == 12:
-    periodo_txt = "Jan. próximo ano"
-else:
-    prox_mes_txt = datetime(ano_atual, mes_atual + 1, 1).strftime("%b").capitalize()
-    periodo_txt = f"{prox_mes_txt}. a Dez."
 
 # =========================
 # INVESTIMENTO
@@ -146,49 +136,86 @@ except:
     valor_investido = 0.0
 
 # =========================
+# PATRIMÔNIO EM CONSTRUÇÃO
+# =========================
+patrimonio_em_construcao = saldo_restante + valor_investido
+
+# cálculo mês anterior para delta
+if mes_atual > 1:
+    saldo_mes_anterior = resumo_ano[
+        resumo_ano["MES_NUM"] == mes_atual - 1
+    ]["SALDO"].sum()
+else:
+    saldo_mes_anterior = 0
+
+delta_total = patrimonio_em_construcao - (valor_investido + saldo_mes_anterior)
+
+# =========================
 # MÉTRICAS
 # =========================
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 
 c1.metric("💵 Receita no Ano", formato_real(total_receita_ano))
 c2.metric("💸 Despesa no Ano", formato_real(total_despesa_ano))
 c3.metric("🏦 Saldo no Ano", formato_real(saldo_ano))
-c4.metric(f"🧭 Saldo Restante ({periodo_txt})", formato_real(saldo_restante))
+
+c4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 c5.metric("📈 Investido", formato_real(valor_investido))
 
+c6.metric(
+    "💎 Total em Construção",
+    formato_real(patrimonio_em_construcao),
+    delta=formato_real(delta_total)
+)
+
+st.markdown("---")
+
 # =========================
-# GRÁFICO GERAL
+# META VISUAL
+# =========================
+st.subheader("📊 Meta Financeira")
+
+meta = st.number_input("Defina sua meta:", value=50000.0, step=1000.0)
+
+progresso = patrimonio_em_construcao / meta if meta > 0 else 0
+progresso = min(progresso, 1.0)
+
+st.progress(progresso)
+st.write(f"{formato_real(patrimonio_em_construcao)} de {formato_real(meta)}")
+
+st.markdown("---")
+
+# =========================
+# SIMULADOR
+# =========================
+st.subheader("🔥 Simulador: e se eu guardar mais por mês?")
+
+extra = st.slider("Aporte extra mensal:", 0, 5000, 500, step=100)
+
+meses_restantes = 12 - mes_atual
+impacto = extra * meses_restantes
+novo_total = patrimonio_em_construcao + impacto
+
+st.write(f"Impacto até Dezembro: {formato_real(impacto)}")
+st.success(f"Novo total projetado: {formato_real(novo_total)}")
+
+st.markdown("---")
+
+# =========================
+# GRÁFICO
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
 
+tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
+
 fig = go.Figure()
 
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["RECEITA"],
-    name="Receita",
-    text=resumo["RECEITA"].apply(formato_real),
-    textposition="inside"
-)
-
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["DESPESA"],
-    name="Despesa",
-    text=resumo["DESPESA"].apply(formato_real),
-    textposition="inside"
-)
-
-fig.add_bar(
-    x=resumo["MES_ANO"],
-    y=resumo["SALDO"],
-    name="Saldo",
-    text=resumo["SALDO"].apply(formato_real),
-    textposition="inside"
-)
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["RECEITA"], name="Receita")
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["DESPESA"], name="Despesa")
+fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"], name="Saldo")
 
 fig.update_layout(
-    template="plotly",
+    template=tema,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
@@ -196,63 +223,3 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
-
-# =========================
-# SELECTBOX DINÂMICO
-# =========================
-if mes_atual == 12:
-    prox_mes = 1
-    prox_ano = ano_atual + 1
-else:
-    prox_mes = mes_atual + 1
-    prox_ano = ano_atual
-
-mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
-
-lista_meses = resumo["MES_ANO"].tolist()
-idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses)-1
-
-mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
-
-mes_txt, ano_sel = mes_sel.split("/")
-ano_sel = int(ano_sel)
-
-rec_mes = receitas[(receitas["ANO"]==ano_sel) & (receitas["MES"]==mes_txt)]
-des_mes = despesas[(despesas["ANO"]==ano_sel) & (despesas["MES"]==mes_txt)]
-
-st.subheader(f"📆 Resumo — {mes_sel}")
-
-c1, c2, c3 = st.columns(3)
-c1.metric("💵 Receitas", formato_real(rec_mes["VALOR"].sum()))
-c2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
-c3.metric("🏦 Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
-
-# =========================
-# GRÁFICO DESPESAS
-# =========================
-st.subheader("💸 Despesas do Mês Selecionado")
-
-if not des_mes.empty:
-    despesas_total = (
-        des_mes.groupby("DESCRICAO", as_index=False)["VALOR"]
-        .sum()
-        .sort_values("VALOR", ascending=False)
-    )
-
-    fig2 = go.Figure(go.Bar(
-        x=despesas_total["DESCRICAO"],
-        y=despesas_total["VALOR"],
-        text=despesas_total["VALOR"].apply(formato_real),
-        textposition="inside"
-    ))
-
-    fig2.update_layout(
-        template="plotly",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=500
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
-else:
-    st.info("Sem despesas neste mês.")
