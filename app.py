@@ -143,44 +143,34 @@ total_receita_ano = resumo_ano["RECEITA"].sum()
 total_despesa_ano = resumo_ano["DESPESA"].sum()
 saldo_ano = resumo_ano["SALDO"].sum()
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Receita no Ano", formato_real(total_receita_ano))
-c2.metric("Despesa no Ano", formato_real(total_despesa_ano))
-c3.metric("Saldo no Ano", formato_real(saldo_ano))
-
-# =========================
-# SALDO RESTANTE
-# =========================
 mes_atual = datetime.now().month
 
 saldo_restante = resumo_ano[
     resumo_ano["MES_NUM"] >= mes_atual
 ]["SALDO"].sum()
 
-mes_inicio_txt = datetime(ano_atual, mes_atual, 1).strftime("%b").capitalize()
-
-st.markdown(f"### 💰 Saldo Restante ({mes_inicio_txt}. a Dez.)")
-st.markdown(f"## {formato_real(saldo_restante)}")
-
 # =========================
-# INVESTIDO (ABA INVESTIMENTO - LINHA 14)
+# INVESTIMENTO (LINHA 14 COLUNA B)
 # =========================
 try:
-    investimento_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
-    linha_14 = investimento_df.iloc[13]  # índice 13 = linha 14
-
-    valor_investido = 0.0
-    for valor in linha_14:
-        valor_convertido = limpar_valor(valor)
-        if valor_convertido > 0:
-            valor_investido = valor_convertido
-            break
-
+    investimento_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO", header=None)
+    valor_investido = limpar_valor(investimento_df.iloc[13, 1])
 except:
     valor_investido = 0.0
 
-st.markdown("### 📈 Investido")
-st.markdown(f"## {formato_real(valor_investido)}")
+# =========================
+# MÉTRICAS (PADRÃO IGUAL)
+# =========================
+c1, c2, c3, c4, c5 = st.columns(5)
+
+c1.metric("Receita no Ano", formato_real(total_receita_ano))
+c2.metric("Despesa no Ano", formato_real(total_despesa_ano))
+c3.metric("Saldo no Ano", formato_real(saldo_ano))
+
+mes_inicio_txt = datetime(ano_atual, mes_atual, 1).strftime("%b").capitalize()
+c4.metric(f"Saldo Restante ({mes_inicio_txt}. a Dez.)", formato_real(saldo_restante))
+
+c5.metric("Investido", formato_real(valor_investido))
 
 # =========================
 # GRÁFICO GERAL
