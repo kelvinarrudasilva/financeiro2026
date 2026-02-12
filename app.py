@@ -1,21 +1,18 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date
 import requests
 import random
 import os
-import numpy as np
 
 # =========================
-# CONFIGURAÇÃO GERAL
+# CONFIGURAÇÃO
 # =========================
 st.set_page_config(
     page_title="💰 Virada Financeira",
-    page_icon="🗝️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_icon="🔑",
+    layout="wide"
 )
 
 # =========================
@@ -24,7 +21,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 html, body, [data-testid="stApp"] { background-color: #0e0e11; }
-.block-container { max-width: 1300px; }
+.block-container { max-width: 1200px; }
 .quote-card {
     background: #16161d;
     padding: 18px;
@@ -41,22 +38,13 @@ html, body, [data-testid="stApp"] { background-color: #0e0e11; }
 # =========================
 # FRASE DIÁRIA
 # =========================
-FRASES_FALLBACK = [
-    "Grandes conquistas exigem dedicação.",
+FRASES = [
+    "O sucesso vem para quem não desiste.",
     "Disciplina hoje, liberdade amanhã.",
-    "Pequenos passos levam a grandes resultados.",
+    "Pequenos passos constroem grandes resultados."
 ]
 
 QUOTE_FILE = "quote.txt"
-
-def get_quote():
-    try:
-        res = requests.get("https://motivacional.top/api.php?acao=aleatoria", timeout=3)
-        data = res.json()
-        frase = data.get("dados", [{}])[0].get("frase", "")
-        return frase if frase else random.choice(FRASES_FALLBACK)
-    except:
-        return random.choice(FRASES_FALLBACK)
 
 def load_quote():
     hoje = date.today().isoformat()
@@ -66,7 +54,7 @@ def load_quote():
             frase = f.readline().strip()
         if saved == hoje:
             return frase
-    frase = get_quote()
+    frase = random.choice(FRASES)
     with open(QUOTE_FILE, "w", encoding="utf-8") as f:
         f.write(f"{hoje}\n{frase}")
     return frase
@@ -75,7 +63,7 @@ st.title("🔑 Virada Financeira")
 st.markdown(f'<div class="quote-card">{load_quote()}</div>', unsafe_allow_html=True)
 
 # =========================
-# PLANILHA
+# PLANILHA GOOGLE
 # =========================
 PLANILHA_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -95,7 +83,7 @@ def limpar_valor(v):
             return float(v)
         except:
             return 0.0
-    if isinstance(v, (int,float)):
+    if isinstance(v, (int, float)):
         return float(v)
     return 0.0
 
@@ -103,7 +91,7 @@ def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # =========================
-# LEITURA PLANILHA
+# LEITURA
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
@@ -112,44 +100,45 @@ except:
     st.stop()
 
 # =========================
-# VALIDAÇÃO E BASES
+# VALIDAÇÃO (9 COLUNAS)
 # =========================
-if df.shape[1] < 10:
-    st.error(f"A planilha retornou apenas {df.shape[1]} colunas. Estrutura insuficiente.")
-    st.write("Colunas encontradas:", df.columns)
+if df.shape[1] < 9:
+    st.error(f"A planilha retornou apenas {df.shape[1]} colunas.")
+    st.write(df.head())
     st.stop()
 
-# RECEITAS
+# RECEITAS (colunas 1-4)
 receitas = df.iloc[1:, 1:5].copy()
-receitas = receitas.iloc[:, :4]
 receitas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
-# DESPESAS
-despesas = df.iloc[1:, 6:10].copy()
-despesas = despesas.iloc[:, :4]
+# DESPESAS (colunas 5-8)
+despesas = df.iloc[1:, 5:9].copy()
 despesas.columns = ["DATA","MES","DESCRICAO","VALOR"]
 
+# =========================
 # TRATAMENTO
+# =========================
 for base in [receitas, despesas]:
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
     base.dropna(subset=["DATA"], inplace=True)
     base["ANO"] = base["DATA"].dt.year
     base["MES_NUM"] = base["DATA"].dt.month
-    base["MES"] = base["DATA"].dt.strftime("%b").str.lower()
+    base["MES"] = base["DATA"].dt.strftime("%b").str.upper()
 
 # =========================
 # MÉTRICAS
 # =========================
 st.subheader("📌 Visão Geral")
-c1, c2, c3 = st.columns(3)
 
 total_rec = receitas["VALOR"].sum()
 total_des = despesas["VALOR"].sum()
+saldo = total_rec - total_des
 
+c1, c2, c3 = st.columns(3)
 c1.metric("💵 Receita Total", formato_real(total_rec))
 c2.metric("💸 Despesa Total", formato_real(total_des))
-c3.metric("⚖️ Saldo Geral", formato_real(total_rec - total_des))
+c3.metric("⚖️ Saldo Geral", formato_real(saldo))
 
 st.divider()
 
@@ -162,7 +151,7 @@ des_m = despesas.groupby(["ANO","MES_NUM","MES"], as_index=False)["VALOR"].sum()
 resumo = pd.merge(rec_m, des_m, on=["ANO","MES_NUM","MES"], how="outer").fillna(0)
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO","MES_NUM"])
-resumo["MES_ANO"] = resumo["MES"].str.upper() + "/" + resumo["ANO"].astype(str)
+resumo["MES_ANO"] = resumo["MES"] + "/" + resumo["ANO"].astype(str)
 
 # =========================
 # GRÁFICO
@@ -189,6 +178,9 @@ fig.add_trace(go.Bar(
     name="Saldo"
 ))
 
-fig.update_layout(barmode='group', height=450)
+fig.update_layout(
+    barmode='group',
+    height=450
+)
 
 st.plotly_chart(fig, use_container_width=True)
