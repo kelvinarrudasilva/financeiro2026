@@ -105,7 +105,7 @@ def preparar_base(base):
     return base
 
 # =========================
-# LEITURA
+# LEITURA PRINCIPAL
 # =========================
 try:
     df = pd.read_excel(PLANILHA_URL)
@@ -159,10 +159,28 @@ saldo_restante = resumo_ano[
 
 mes_inicio_txt = datetime(ano_atual, mes_atual, 1).strftime("%b").capitalize()
 
-st.markdown(
-    f"### 💰 Saldo Restante ({mes_inicio_txt}. a Dez.)  \n"
-    f"## {formato_real(saldo_restante)}"
-)
+st.markdown(f"### 💰 Saldo Restante ({mes_inicio_txt}. a Dez.)")
+st.markdown(f"## {formato_real(saldo_restante)}")
+
+# =========================
+# INVESTIDO (ABA INVESTIMENTO - LINHA 14)
+# =========================
+try:
+    investimento_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO")
+    linha_14 = investimento_df.iloc[13]  # índice 13 = linha 14
+
+    valor_investido = 0.0
+    for valor in linha_14:
+        valor_convertido = limpar_valor(valor)
+        if valor_convertido > 0:
+            valor_investido = valor_convertido
+            break
+
+except:
+    valor_investido = 0.0
+
+st.markdown("### 📈 Investido")
+st.markdown(f"## {formato_real(valor_investido)}")
 
 # =========================
 # GRÁFICO GERAL
