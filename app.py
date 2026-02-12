@@ -1,22 +1,22 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import random
 
-st.set_page_config(page_title="💰 Virada Financeira PRO", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="💰 Virada Financeira", page_icon="💰", layout="wide")
 
 # =========================
-# FRASE
+# FRASES
 # =========================
 FRASES = [
     "Disciplina constrói liberdade.",
-    "Você não está organizando dinheiro. Está construindo patrimônio.",
     "Consistência cria patrimônio invisível.",
-    "O futuro recompensa quem calcula."
+    "Quem controla o dinheiro controla o futuro."
 ]
 
-st.title("🚀 Virada Financeira")
+st.title("💰 Virada Financeira 2026")
 st.caption(random.choice(FRASES))
 
 PLANILHA_URL = (
@@ -42,28 +42,46 @@ def limpar_valor(v):
 def formato_real(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def normalizar(df):
+def detectar_colunas(df):
     df.columns = df.columns.str.upper().str.strip()
-    return df
+    data_col = [c for c in df.columns if "DATA" in c]
+    desc_col = [c for c in df.columns if "DESC" in c]
+    valor_col = [c for c in df.columns if "VALOR" in c]
 
-def preparar(base):
-    base = normalizar(base)
-    base.columns = ["DATA","DESC","VALOR"]
+    if data_col and desc_col and valor_col:
+        return data_col[0], desc_col[0], valor_col[0]
+    else:
+        return None, None, None
+
+def preparar(df):
+    data_col, desc_col, valor_col = detectar_colunas(df)
+    if not data_col:
+        return pd.DataFrame()
+
+    base = df[[data_col, desc_col, valor_col]].copy()
+    base.columns = ["DATA", "DESC", "VALOR"]
+
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
     base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+
     base["ANO"] = base["DATA"].dt.year
     base["MES"] = base["DATA"].dt.month
-    return base
+
+    return base.dropna(subset=["DATA"])
 
 # =========================
 # LEITURA
 # =========================
 df = pd.read_excel(PLANILHA_URL)
-df = normalizar(df)
 
-meio = len(df.columns)//2
-receitas = preparar(df.iloc[:,:meio].copy())
-despesas = preparar(df.iloc[:,meio:].copy())
+meio = len(df.columns) // 2
+receitas = preparar(df.iloc[:, :meio])
+despesas = preparar(df.iloc[:, meio:])
+
+# Segurança extra
+if receitas.empty or despesas.empty:
+    st.error("Erro ao identificar colunas DATA / DESC / VALOR na planilha.")
+    st.stop()
 
 rec = receitas.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
 des = despesas.groupby(["ANO","MES"], as_index=False)["VALOR"].sum()
@@ -73,6 +91,7 @@ resumo["SALDO"] = resumo["VALOR_REC"] - resumo["VALOR_DES"]
 
 ano_atual = datetime.now().year
 mes_atual = datetime.now().month
+proximo_mes = mes_atual + 1 if mes_atual < 12 else 1
 
 res_ano = resumo[resumo["ANO"]==ano_atual]
 
@@ -80,9 +99,10 @@ receita_ano = res_ano["VALOR_REC"].sum()
 despesa_ano = res_ano["VALOR_DES"].sum()
 saldo_ano = res_ano["SALDO"].sum()
 
-saldo_restante = res_ano[res_ano["MES"] > mes_atual]["SALDO"].sum()
+# 🔥 SALDO RESTANTE baseado no PRÓXIMO MÊS
+saldo_restante = res_ano[res_ano["MES"] >= proximo_mes]["SALDO"].sum()
 
-# INVESTIDO
+# INVESTIMENTO
 try:
     inv_df = pd.read_excel(PLANILHA_URL, sheet_name="INVESTIMENTO", header=None)
     investido = limpar_valor(inv_df.iloc[13,1])
@@ -90,7 +110,7 @@ except:
     investido = 0
 
 # =========================
-# MÉTRICAS PRINCIPAIS
+# MÉTRICAS
 # =========================
 col1,col2,col3,col4,col5 = st.columns(5)
 
@@ -101,57 +121,64 @@ col4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 col5.metric("📈 Investido", formato_real(investido))
 
 # =========================
-# NOVAS MÉTRICAS AVANÇADAS
+# VISÃO GERAL ANUAL
 # =========================
 st.divider()
-st.subheader("📊 Inteligência Financeira")
+st.subheader("📊 Visão Geral do Ano")
 
-taxa_economia = (saldo_ano/receita_ano*100) if receita_ano>0 else 0
-patrimonio_projetado = investido + saldo_restante
-
-media_saldo = res_ano["SALDO"].mean()
-meses_restantes = 12 - mes_atual
-projecao_conservadora = investido + (media_saldo * meses_restantes)
-
-colA,colB,colC = st.columns(3)
-
-colA.metric("📌 Taxa de Economia", f"{taxa_economia:.1f}%")
-colB.metric("💎 Patrimônio Projetado", formato_real(patrimonio_projetado))
-colC.metric("🔮 Projeção Conservadora", formato_real(projecao_conservadora))
-
-# =========================
-# RISCO FINANCEIRO
-# =========================
-st.subheader("⚠️ Indicador de Risco")
-
-if receita_ano > 0:
-    consumo = despesa_ano/receita_ano*100
-else:
-    consumo = 0
-
-if consumo > 85:
-    st.error(f"🔴 Alto risco — {consumo:.1f}% da receita está sendo consumida.")
-elif consumo > 70:
-    st.warning(f"🟡 Atenção — {consumo:.1f}% da receita comprometida.")
-else:
-    st.success(f"🟢 Saudável — {consumo:.1f}% da receita comprometida.")
-
-# =========================
-# PROGRESSO VISUAL DO ANO
-# =========================
-st.subheader("📈 Progresso Financeiro do Ano")
+resumo_anual = resumo[resumo["ANO"]==ano_atual].copy()
+resumo_anual["MES_NOME"] = resumo_anual["MES"].apply(
+    lambda x: datetime(1900,x,1).strftime("%b")
+)
 
 fig = go.Figure()
 
-fig.add_bar(name="Receita", x=["Ano"], y=[receita_ano])
-fig.add_bar(name="Despesa", x=["Ano"], y=[despesa_ano])
-fig.add_bar(name="Saldo", x=["Ano"], y=[saldo_ano])
+fig.add_bar(
+    x=resumo_anual["MES_NOME"],
+    y=resumo_anual["SALDO"],
+    text=resumo_anual["SALDO"].apply(formato_real),
+    textposition="inside"
+)
 
 fig.update_layout(
     template="plotly",
-    barmode="group",
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)"
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# DESPESAS DO MÊS PRE-SELECIONADO
+# =========================
+st.divider()
+st.subheader("💸 Despesas do Próximo Mês")
+
+despesas_mes = despesas[
+    (despesas["ANO"]==ano_atual) &
+    (despesas["MES"]==proximo_mes)
+]
+
+if not despesas_mes.empty:
+    agrup = despesas_mes.groupby("DESC", as_index=False)["VALOR"].sum()
+
+    fig2 = px.bar(
+        agrup,
+        x="VALOR",
+        y="DESC",
+        orientation="h",
+        text=agrup["VALOR"].apply(formato_real)
+    )
+
+    fig2.update_traces(textposition="inside")
+
+    fig2.update_layout(
+        template="plotly",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(autorange="reversed")
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
+else:
+    st.info("Sem despesas registradas para o próximo mês.")
