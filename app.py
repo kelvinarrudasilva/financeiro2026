@@ -42,29 +42,91 @@ PLANILHA_URL = (
 st.markdown(
     """
     <style>
+    :root {
+        --bg-main: #05070b;
+        --bg-soft: #0c1017;
+        --bg-card: linear-gradient(180deg, rgba(19,24,34,0.92) 0%, rgba(10,13,19,0.96) 100%);
+        --border-soft: rgba(148, 163, 184, 0.14);
+        --border-strong: rgba(99, 102, 241, 0.20);
+        --text-main: #edf2f7;
+        --text-soft: #96a2b4;
+        --accent: #6ee7b7;
+        --accent-2: #60a5fa;
+        --accent-3: #a78bfa;
+    }
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(96,165,250,0.10), transparent 26%),
+            radial-gradient(circle at top right, rgba(167,139,250,0.08), transparent 24%),
+            linear-gradient(180deg, #04060a 0%, #070b12 100%);
+        color: var(--text-main);
+    }
+    .block-container {
+        padding-top: 1.2rem !important;
+        padding-bottom: 1.6rem !important;
+        max-width: 1480px;
+    }
+    h1, h2, h3 {
+        letter-spacing: -0.02em;
+    }
     div[data-testid="stMetric"] {
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 18px;
-        padding: 10px 14px;
-        min-height: 112px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+        border-radius: 22px;
+        padding: 14px 16px;
+        min-height: 116px;
+        transition: all .18s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-strong);
+        box-shadow: 0 14px 36px rgba(0,0,0,0.28);
     }
     div[data-testid="stMetricLabel"] {
-        font-size: 0.92rem !important;
+        font-size: 0.84rem !important;
+        color: var(--text-soft) !important;
+        letter-spacing: 0.01em;
     }
     div[data-testid="stMetricValue"] {
-        font-size: 1.45rem !important;
-        line-height: 1.15 !important;
+        font-size: 1.28rem !important;
+        line-height: 1.1 !important;
+        color: var(--text-main) !important;
     }
     div[data-testid="stMetricValue"] > div {
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
     }
+    .stSelectbox > div > div,
+    .stMultiSelect > div > div,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="base-input"] {
+        background: rgba(12,16,23,0.92) !important;
+        border: 1px solid rgba(148,163,184,0.14) !important;
+        border-radius: 16px !important;
+        min-height: 46px;
+        box-shadow: none !important;
+    }
+    .stDataFrame {
+        border: 1px solid rgba(148,163,184,0.10);
+        border-radius: 18px;
+        overflow: hidden;
+    }
     .gastos-filtro {
-        font-size: 0.95rem;
-        opacity: 0.92;
-        margin: -4px 0 8px 0;
+        font-size: 0.94rem;
+        color: var(--text-soft);
+        opacity: 0.98;
+        margin: -2px 0 10px 0;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(12,16,23,0.65);
+        border: 1px solid rgba(148,163,184,0.10);
+    }
+    hr {
+        border-color: rgba(148,163,184,0.10) !important;
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
     }
     </style>
     """,
@@ -320,6 +382,10 @@ st.markdown("---")
 st.subheader("📊 Balanço Financeiro Geral")
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
+cor_receita = "#60A5FA"
+cor_despesa = "#F87171"
+cor_saldo = "#6EE7B7"
+cor_destaque = "#A78BFA"
 
 fig = go.Figure()
 fig.add_bar(
@@ -328,7 +394,9 @@ fig.add_bar(
     name="Receita",
     text=resumo["RECEITA"].apply(formato_real),
     textposition="inside",
-    textfont=dict(size=11),
+    textfont=dict(size=11, color="#f8fafc"),
+    marker=dict(color=cor_receita, line=dict(width=0)),
+    insidetextanchor="middle",
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -336,7 +404,9 @@ fig.add_bar(
     name="Despesa",
     text=resumo["DESPESA"].apply(formato_real),
     textposition="inside",
-    textfont=dict(size=11),
+    textfont=dict(size=11, color="#f8fafc"),
+    marker=dict(color=cor_despesa, line=dict(width=0)),
+    insidetextanchor="middle",
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -344,18 +414,25 @@ fig.add_bar(
     name="Saldo",
     text=resumo["SALDO"].apply(formato_real),
     textposition="inside",
-    textfont=dict(size=11),
+    textfont=dict(size=11, color="#081018"),
+    marker=dict(color=cor_saldo, line=dict(width=0)),
+    insidetextanchor="middle",
 )
 fig.update_layout(
     template=tema,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
+    bargap=0.22,
+    bargroupgap=0.09,
     uniformtext_minsize=8,
     uniformtext_mode="hide",
-    height=500,
-    margin=dict(l=10, r=10, t=20, b=10),
+    height=470,
+    margin=dict(l=6, r=6, t=10, b=6),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
 )
+fig.update_xaxes(showgrid=False, tickfont=dict(size=11))
+fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
 
 st.plotly_chart(fig, use_container_width=True)
 
@@ -403,21 +480,24 @@ if lista_meses:
             y=despesas_total["VALOR"],
             text=despesas_total["VALOR"].apply(formato_real),
             textposition="inside",
-            textfont=dict(size=11),
-            marker=dict(line=dict(width=0)),
+            textfont=dict(size=11, color="#081018"),
+            insidetextanchor="middle",
+            marker=dict(color=cor_destaque, line=dict(width=0)),
             hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
         ))
         fig2.update_layout(
             template=tema,
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            height=340,
-            margin=dict(l=10, r=10, t=10, b=10),
+            height=320,
+            margin=dict(l=6, r=6, t=8, b=6),
             xaxis_title="",
             yaxis_title="",
             uniformtext_minsize=8,
             uniformtext_mode="hide",
         )
+        fig2.update_xaxes(showgrid=False)
+        fig2.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("Sem despesas neste mês.")
@@ -512,21 +592,23 @@ else:
                     text=graf_class["VALOR"].apply(formato_real),
                     textposition="inside",
                     insidetextanchor="middle",
-                    textfont=dict(size=13),
-                    marker=dict(line=dict(width=0)),
+                    textfont=dict(size=13, color="#081018"),
+                    marker=dict(color=["#6EE7B7", "#FCA5A5", "#93C5FD"][:len(graf_class)], line=dict(width=0)),
                     hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
                 fig3.update_layout(
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=360,
-                    margin=dict(l=20, r=20, t=10, b=10),
+                    height=350,
+                    margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
                     uniformtext_minsize=10,
                     uniformtext_mode="hide",
                 )
+                fig3.update_xaxes(showgrid=False)
+                fig3.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
                 st.plotly_chart(fig3, use_container_width=True)
 
         with gc2:
@@ -547,21 +629,23 @@ else:
                     text=graf_itens["VALOR"].apply(formato_real),
                     textposition="inside",
                     insidetextanchor="middle",
-                    textfont=dict(size=12),
-                    marker=dict(line=dict(width=0)),
+                    textfont=dict(size=12, color="#f8fafc"),
+                    marker=dict(color=cor_receita, line=dict(width=0)),
                     hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
                 fig4.update_layout(
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=360,
-                    margin=dict(l=20, r=20, t=10, b=10),
+                    height=350,
+                    margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
                     uniformtext_minsize=9,
                     uniformtext_mode="hide",
                 )
+                fig4.update_xaxes(showgrid=False)
+                fig4.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
                 st.plotly_chart(fig4, use_container_width=True)
 
         st.markdown("#### 📋 Tabela de gastos")
