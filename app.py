@@ -37,6 +37,28 @@ PLANILHA_URL = (
 )
 
 # =========================
+# ESTILO EXTRA
+# =========================
+st.markdown(
+    """
+    <style>
+    div[data-testid="stMetric"] {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 18px;
+        padding: 10px 14px;
+    }
+    .gastos-filtro {
+        font-size: 0.95rem;
+        opacity: 0.92;
+        margin: -4px 0 8px 0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# =========================
 # FUNÇÕES
 # =========================
 def limpar_valor(v):
@@ -88,7 +110,7 @@ def preparar_base(base):
     base.columns = ["DATA", "DESCRICAO", "VALOR"]
 
     base["VALOR"] = base["VALOR"].apply(limpar_valor)
-    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce")
+    base["DATA"] = pd.to_datetime(base["DATA"], errors="coerce", dayfirst=True)
     base = base.dropna(subset=["DATA"])
 
     base["ANO"] = base["DATA"].dt.year
@@ -99,19 +121,10 @@ def preparar_base(base):
 
 
 @st.cache_data(show_spinner=False)
-def carregar_aba_principal(url):
-    return pd.read_excel(url)
-
-
-@st.cache_data(show_spinner=False)
-def listar_abas(url):
+def carregar_planilhas(url):
     xls = pd.ExcelFile(url)
-    return xls.sheet_names
-
-
-@st.cache_data(show_spinner=False)
-def carregar_aba(url, sheet_name, header=0):
-    return pd.read_excel(url, sheet_name=sheet_name, header=header)
+    planilhas = {nome: pd.read_excel(xls, sheet_name=nome) for nome in xls.sheet_names}
+    return planilhas, xls.sheet_names
 
 
 def encontrar_aba_gastos(sheet_names):
@@ -133,7 +146,7 @@ def encontrar_aba_gastos(sheet_names):
 def preparar_gastos(df):
     if df is None or df.empty:
         return pd.DataFrame(columns=[
-            "DATA", "MES", "QUINZENA", "NOME", "FORMA PAGAMENTO", "CLASSIFICACAO", "VALOR", "ANO", "MES_NUM", "MES_ANO"
+            "DATA", "MES", "QUINZENA", "NOME", "FORMA PAGAMENTO", "CLASSIFICACAO", "VALOR"
         ])
 
     df = normalizar_colunas(df)
@@ -144,7 +157,7 @@ def preparar_gastos(df):
             mapa[c] = "DATA"
         elif (c == "MES" or "MES" in c) and "MES" not in mapa.values():
             mapa[c] = "MES"
-        elif ("NOME" in c or "DESCR" in c) and "NOME" not in mapa.values():
+        elif "NOME" in c and "NOME" not in mapa.values():
             mapa[c] = "NOME"
         elif "FORMA" in c and "PAG" in c and "FORMA PAGAMENTO" not in mapa.values():
             mapa[c] = "FORMA PAGAMENTO"
@@ -158,7 +171,7 @@ def preparar_gastos(df):
     obrigatorias = ["DATA", "NOME", "VALOR"]
     if any(col not in df.columns for col in obrigatorias):
         return pd.DataFrame(columns=[
-            "DATA", "MES", "QUINZENA", "NOME", "FORMA PAGAMENTO", "CLASSIFICACAO", "VALOR", "ANO", "MES_NUM", "MES_ANO"
+            "DATA", "MES", "QUINZENA", "NOME", "FORMA PAGAMENTO", "CLASSIFICACAO", "VALOR"
         ])
 
     for col in ["FORMA PAGAMENTO", "CLASSIFICACAO", "MES"]:
@@ -171,13 +184,23 @@ def preparar_gastos(df):
     df = df.dropna(subset=["DATA"])
     df = df[df["NOME"].astype(str).str.strip() != ""]
 
+    df["CLASSIFICACAO"] = (
+        df["CLASSIFICACAO"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .replace({"": "SEM CLASSIFICACAO"})
+    )
+    df["FORMA PAGAMENTO"] = df["FORMA PAGAMENTO"].astype(str).str.strip().replace({"": "NÃO INFORMADO"})
+
     df["QUINZENA"] = df["DATA"].dt.day.apply(lambda x: "1ª quinzena" if x <= 15 else "2ª quinzena")
     df["ANO"] = df["DATA"].dt.year
     df["MES_NUM"] = df["DATA"].dt.month
+    df["MES_ABREV"] = df["DATA"].dt.strftime("%b").str.upper()
     df["MES_ANO"] = df["DATA"].dt.strftime("%b/%Y").str.upper()
 
     mes_limpo = df["MES"].astype(str).str.strip()
-    df["MES"] = mes_limpo.where(mes_limpo != "", df["DATA"].dt.strftime("%b").str.upper())
+    df["MES"] = mes_limpo.where(mes_limpo != "", df["MES_ABREV"])
 
     return df.sort_values("DATA", ascending=False)
 
@@ -186,10 +209,19 @@ def preparar_gastos(df):
 # LEITURA
 # =========================
 try:
-    df = carregar_aba_principal(PLANILHA_URL)
-    nomes_abas = listar_abas(PLANILHA_URL)
+    planilhas, nomes_abas = carregar_planilhas(PLANILHA_URL)
 except Exception as e:
     st.error(f"Erro ao carregar planilha: {e}")
+    st.stop()
+
+if not nomes_abas:
+    st.error("Nenhuma aba encontrada na planilha.")
+    st.stop()
+
+try:
+    df = planilhas[nomes_abas[0]].copy()
+except Exception as e:
+    st.error(f"Erro ao abrir a aba principal: {e}")
     st.stop()
 
 df = normalizar_colunas(df)
@@ -229,11 +261,15 @@ saldo_restante = resumo_ano[
 # =========================
 # INVESTIMENTO
 # =========================
-try:
-    investimento_df = carregar_aba(PLANILHA_URL, "INVESTIMENTO", header=None)
-    valor_investido = limpar_valor(investimento_df.iloc[13, 1])
-except Exception:
-    valor_investido = 0.0
+valor_investido = 0.0
+for nome_aba in nomes_abas:
+    if normalizar_texto(nome_aba) == "INVESTIMENTO":
+        try:
+            investimento_df = pd.read_excel(PLANILHA_URL, sheet_name=nome_aba, header=None)
+            valor_investido = limpar_valor(investimento_df.iloc[13, 1])
+        except Exception:
+            valor_investido = 0.0
+        break
 
 patrimonio_em_construcao = saldo_restante + valor_investido
 
@@ -259,9 +295,30 @@ st.subheader("📊 Balanço Financeiro Geral")
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
 
 fig = go.Figure()
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["RECEITA"], name="Receita", text=resumo["RECEITA"].apply(formato_real), textposition="inside")
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["DESPESA"], name="Despesa", text=resumo["DESPESA"].apply(formato_real), textposition="inside")
-fig.add_bar(x=resumo["MES_ANO"], y=resumo["SALDO"], name="Saldo", text=resumo["SALDO"].apply(formato_real), textposition="inside")
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["RECEITA"],
+    name="Receita",
+    text=resumo["RECEITA"].apply(formato_real),
+    textposition="inside",
+    textfont=dict(size=11),
+)
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["DESPESA"],
+    name="Despesa",
+    text=resumo["DESPESA"].apply(formato_real),
+    textposition="inside",
+    textfont=dict(size=11),
+)
+fig.add_bar(
+    x=resumo["MES_ANO"],
+    y=resumo["SALDO"],
+    name="Saldo",
+    text=resumo["SALDO"].apply(formato_real),
+    textposition="inside",
+    textfont=dict(size=11),
+)
 fig.update_layout(
     template=tema,
     plot_bgcolor="rgba(0,0,0,0)",
@@ -270,7 +327,9 @@ fig.update_layout(
     uniformtext_minsize=8,
     uniformtext_mode="hide",
     height=500,
+    margin=dict(l=10, r=10, t=20, b=10),
 )
+
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
@@ -299,10 +358,10 @@ if lista_meses:
     des_mes = despesas[(despesas["ANO"] == ano_sel) & (despesas["MES"] == mes_txt)]
 
     st.subheader(f"📆 Resumo — {mes_sel}")
-    r1, r2, r3 = st.columns(3)
-    r1.metric("💵 Receitas", formato_real(rec_mes["VALOR"].sum()))
-    r2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
-    r3.metric("🏦 Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💵 Receitas", formato_real(rec_mes["VALOR"].sum()))
+    c2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
+    c3.metric("🏦 Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
     st.subheader("💸 Despesas do Mês Selecionado")
     if not des_mes.empty:
@@ -310,117 +369,187 @@ if lista_meses:
             des_mes.groupby("DESCRICAO", as_index=False)["VALOR"]
             .sum()
             .sort_values("VALOR", ascending=False)
+            .head(12)
         )
-        despesas_total = despesas_total[despesas_total["DESCRICAO"].astype(str).str.strip() != ""]
-
-        if despesas_total.empty:
-            st.info("Sem despesas válidas neste mês.")
-        else:
-            fig2 = go.Figure(go.Bar(
-                x=despesas_total["DESCRICAO"],
-                y=despesas_total["VALOR"],
-                text=despesas_total["VALOR"].apply(formato_real),
-                textposition="outside"
-            ))
-            fig2.update_layout(
-                template=tema,
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                height=340,
-                margin=dict(l=20, r=20, t=20, b=20),
-                xaxis_title="",
-                yaxis_title="",
-            )
-            st.plotly_chart(fig2, use_container_width=True)
+        fig2 = go.Figure(go.Bar(
+            x=despesas_total["DESCRICAO"],
+            y=despesas_total["VALOR"],
+            text=despesas_total["VALOR"].apply(formato_real),
+            textposition="inside",
+            textfont=dict(size=11),
+            marker=dict(line=dict(width=0)),
+            hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+        ))
+        fig2.update_layout(
+            template=tema,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=340,
+            margin=dict(l=10, r=10, t=10, b=10),
+            xaxis_title="",
+            yaxis_title="",
+            uniformtext_minsize=8,
+            uniformtext_mode="hide",
+        )
+        st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("Sem despesas neste mês.")
 else:
     st.info("Não encontrei meses válidos na base principal.")
 
 # =========================
-# GASTOS VARIÁVEIS — SÓ TABELA + GRÁFICO
+# GASTOS VARIÁVEIS — TABELINHA + GRÁFICO
 # =========================
 st.markdown("---")
 st.subheader("🧾 Gastos variáveis")
-st.caption("Uma tabelinha e um gráfico para acompanhar o que saiu fora dos gastos fixos.")
+st.caption("Controle do que saiu fora dos gastos fixos, com leitura por mês e quinzena.")
 
 aba_gastos = encontrar_aba_gastos(nomes_abas)
 
 if not aba_gastos:
-    st.info("Não encontrei uma aba de gastos variáveis. Use uma aba como GASTOS com colunas DATA, MÊS, NOME, FORMA PAGAMENTO, CLASSIFICAÇÃO e VALOR.")
+    st.info("Não encontrei uma aba de gastos variáveis. Crie uma aba como GASTOS e use colunas como DATA, MÊS, NOME, FORMA PAGAMENTO, CLASSIFICAÇÃO e VALOR.")
 else:
-    try:
-        gastos_raw = carregar_aba(PLANILHA_URL, aba_gastos)
-    except Exception:
-        gastos_raw = pd.DataFrame()
-
+    gastos_raw = planilhas.get(aba_gastos, pd.DataFrame())
     gastos = preparar_gastos(gastos_raw)
 
     if gastos.empty:
-        st.warning(f"Encontrei a aba '{aba_gastos}', mas não consegui montar a base de gastos.")
+        st.warning(f"Encontrei a aba '{aba_gastos}', mas não consegui montar a base de gastos. Confere se ela tem pelo menos DATA, NOME e VALOR.")
     else:
         meses_gastos = sorted(gastos["MES_ANO"].dropna().unique().tolist(), reverse=True)
         mes_padrao = datetime.now().strftime("%b/%Y").upper()
         idx_mes_gasto = meses_gastos.index(mes_padrao) if mes_padrao in meses_gastos else 0
 
-        f1, f2 = st.columns([2, 1])
-        with f1:
+        colf1, colf2, colf3 = st.columns([1.6, 1, 1.2])
+        with colf1:
             mes_gasto_sel = st.selectbox("📅 Mês dos gastos", meses_gastos, index=idx_mes_gasto)
-        with f2:
+        with colf2:
             quinzena_sel = st.selectbox("🗓️ Quinzena", ["Todas", "1ª quinzena", "2ª quinzena"], index=0)
+        with colf3:
+            classif_sel = st.selectbox(
+                "👍 Filtro de classificação",
+                ["Todos", "👍 Indispensável", "👎 Dispensável"],
+                index=0,
+            )
+
+        st.markdown(
+            '<div class="gastos-filtro">👍 indispensável = gasto necessário &nbsp;&nbsp;•&nbsp;&nbsp; 👎 dispensável = gasto que dá pra segurar</div>',
+            unsafe_allow_html=True,
+        )
 
         gastos_filt = gastos[gastos["MES_ANO"] == mes_gasto_sel].copy()
         if quinzena_sel != "Todas":
             gastos_filt = gastos_filt[gastos_filt["QUINZENA"] == quinzena_sel].copy()
 
-        g1, g2 = st.columns([1.05, 1.35])
-        with g1:
-            total_gastos = gastos_filt["VALOR"].sum()
-            qtd_lanc = len(gastos_filt)
-            st.metric("💸 Total do período", formato_real(total_gastos))
-            st.metric("🧾 Lançamentos", str(qtd_lanc))
+        classif_norm = gastos_filt["CLASSIFICACAO"].astype(str).str.upper()
+        if classif_sel == "👍 Indispensável":
+            gastos_filt = gastos_filt[classif_norm == "INDISPENSAVEL"].copy()
+        elif classif_sel == "👎 Dispensável":
+            gastos_filt = gastos_filt[classif_norm == "DISPENSAVEL"].copy()
 
-            classif = gastos_filt.copy()
-            if not classif.empty:
-                classif["CLASSIFICACAO"] = classif["CLASSIFICACAO"].replace("", "SEM CLASSIFICAÇÃO")
-                graf_class = classif.groupby("CLASSIFICACAO", as_index=False)["VALOR"].sum().sort_values("VALOR", ascending=False)
+        total_gastos = gastos_filt["VALOR"].sum()
+        qtd_lanc = len(gastos_filt)
+        total_indisp = gastos_filt.loc[
+            gastos_filt["CLASSIFICACAO"].astype(str).str.upper() == "INDISPENSAVEL", "VALOR"
+        ].sum()
+        total_disp = gastos_filt.loc[
+            gastos_filt["CLASSIFICACAO"].astype(str).str.upper() == "DISPENSAVEL", "VALOR"
+        ].sum()
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("💸 Total no período", formato_real(total_gastos))
+        m2.metric("🧾 Lançamentos", str(qtd_lanc))
+        m3.metric("👍 Indispensável", formato_real(total_indisp))
+        m4.metric("👎 Dispensável", formato_real(total_disp))
+
+        gc1, gc2 = st.columns([1.25, 1])
+
+        with gc1:
+            st.markdown("#### 📊 Gastos por classificação")
+            if gastos_filt.empty:
+                st.info("Sem gastos nesse filtro.")
+            else:
+                classif = gastos_filt.copy()
+                classif["CLASSIFICACAO_LABEL"] = classif["CLASSIFICACAO"].replace({
+                    "INDISPENSAVEL": "👍 Indispensável",
+                    "DISPENSAVEL": "👎 Dispensável",
+                    "SEM CLASSIFICACAO": "Sem classificação",
+                })
+                graf_class = (
+                    classif.groupby("CLASSIFICACAO_LABEL", as_index=False)["VALOR"]
+                    .sum()
+                    .sort_values("VALOR", ascending=False)
+                )
 
                 fig3 = go.Figure(go.Bar(
-                    x=graf_class["CLASSIFICACAO"],
+                    x=graf_class["CLASSIFICACAO_LABEL"],
                     y=graf_class["VALOR"],
                     text=graf_class["VALOR"].apply(formato_real),
-                    textposition="outside"
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    textfont=dict(size=13),
+                    marker=dict(line=dict(width=0)),
+                    hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
                 fig3.update_layout(
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=320,
-                    margin=dict(l=20, r=20, t=20, b=20),
+                    height=360,
+                    margin=dict(l=20, r=20, t=10, b=10),
                     xaxis_title="",
                     yaxis_title="",
-                    showlegend=False,
+                    uniformtext_minsize=10,
+                    uniformtext_mode="hide",
                 )
                 st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.info("Sem gastos nesse filtro.")
 
-        with g2:
-            tabela_gastos = gastos_filt.copy()
-            tabela_gastos["DATA"] = tabela_gastos["DATA"].dt.strftime("%d/%m/%Y")
-            tabela_gastos["VALOR_FMT"] = tabela_gastos["VALOR"].map(formato_real)
-            tabela_gastos = tabela_gastos.rename(columns={
-                "DATA": "Data",
-                "MES": "Mês",
-                "QUINZENA": "Quinzena",
-                "NOME": "Nome",
-                "FORMA PAGAMENTO": "Forma pagamento",
-                "CLASSIFICACAO": "Classificação",
-            })
-            st.dataframe(
-                tabela_gastos[["Data", "Mês", "Quinzena", "Nome", "Forma pagamento", "Classificação", "VALOR_FMT"]]
-                .rename(columns={"VALOR_FMT": "Valor"}),
-                use_container_width=True,
-                hide_index=True,
-                height=420,
-            )
+        with gc2:
+            st.markdown("#### 💳 Gastos por forma de pagamento")
+            if gastos_filt.empty:
+                st.info("Sem gastos nesse filtro.")
+            else:
+                graf_pag = (
+                    gastos_filt.groupby("FORMA PAGAMENTO", as_index=False)["VALOR"]
+                    .sum()
+                    .sort_values("VALOR", ascending=False)
+                )
+                fig4 = go.Figure(go.Pie(
+                    labels=graf_pag["FORMA PAGAMENTO"],
+                    values=graf_pag["VALOR"],
+                    hole=0.52,
+                    textinfo="label+percent",
+                ))
+                fig4.update_layout(
+                    template=tema,
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    height=360,
+                    margin=dict(l=20, r=20, t=10, b=10),
+                )
+                st.plotly_chart(fig4, use_container_width=True)
+
+        st.markdown("#### 📋 Tabela de gastos")
+        tabela_gastos = gastos_filt.copy()
+        tabela_gastos["DATA"] = tabela_gastos["DATA"].dt.strftime("%d/%m/%Y")
+        tabela_gastos["CLASSIFICACAO"] = tabela_gastos["CLASSIFICACAO"].replace({
+            "INDISPENSAVEL": "👍 Indispensável",
+            "DISPENSAVEL": "👎 Dispensável",
+            "SEM CLASSIFICACAO": "Sem classificação",
+        })
+        tabela_gastos["VALOR_FMT"] = tabela_gastos["VALOR"].map(formato_real)
+        tabela_gastos = tabela_gastos.rename(columns={
+            "DATA": "Data",
+            "MES": "Mês",
+            "QUINZENA": "Quinzena",
+            "NOME": "Nome",
+            "FORMA PAGAMENTO": "Forma pagamento",
+            "CLASSIFICACAO": "Classificação",
+        })
+
+        st.dataframe(
+            tabela_gastos[[
+                "Data", "Mês", "Quinzena", "Nome", "Forma pagamento", "Classificação", "VALOR_FMT"
+            ]].rename(columns={"VALOR_FMT": "Valor"}),
+            use_container_width=True,
+            hide_index=True,
+        )
