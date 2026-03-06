@@ -9,8 +9,8 @@ import unicodedata
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="💰 Virada Financeira",
-    page_icon="💎",
+    page_title="🌙 Atlas Financeiro",
+    page_icon="🌙",
     layout="wide"
 )
 
@@ -24,7 +24,12 @@ FRASES = [
     "Você está construindo algo grande."
 ]
 
-st.title("💎 Virada Financeira")
+st.markdown("""
+<div class="hero-wrap">
+  <div class="hero-title">🌙 Atlas Financeiro</div>
+  <div class="hero-sub">Seu painel financeiro em modo noturno, limpo e elegante.</div>
+</div>
+""", unsafe_allow_html=True)
 st.caption(random.choice(FRASES))
 
 # =========================
@@ -62,24 +67,44 @@ st.markdown(
         color: var(--text-main);
     }
     .block-container {
-        padding-top: 0.9rem !important;
+        padding-top: 1.1rem !important;
         padding-bottom: 1.2rem !important;
         max-width: 1480px;
     }
     h1, h2, h3 {
         letter-spacing: -0.02em;
     }
+    .hero-wrap {
+        padding: 2px 0 4px 0;
+        margin-bottom: 2px;
+    }
+    .hero-title {
+        font-size: 2.05rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.2;
+        color: var(--text-main);
+        margin: 0;
+        padding: 0;
+    }
+    .hero-sub {
+        color: var(--text-soft);
+        font-size: 0.96rem;
+        margin-top: 2px;
+    }
     div[data-testid="stMetric"] {
         background: var(--bg-card);
         border: 1px solid var(--border-soft);
         box-shadow: 0 10px 30px rgba(0,0,0,0.22);
         border-radius: 22px;
-        padding: 12px 14px 10px 14px;
-        min-height: 92px;
+        padding: 12px 12px 10px 12px;
+        min-height: 90px;
         transition: all .18s ease;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: center;
+        text-align: center;
         gap: 2px;
     }
     div[data-testid="stMetric"]:hover {
@@ -93,20 +118,31 @@ st.markdown(
         letter-spacing: 0.01em;
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
+        text-align: center !important;
+        justify-content: center !important;
     }
     div[data-testid="stMetric"] > div {
         width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
     div[data-testid="stMetricLabel"] p {
         margin: 0 !important;
         line-height: 1.05 !important;
+        text-align: center !important;
+        width: 100%;
     }
     div[data-testid="stMetricValue"] {
         font-size: 1.18rem !important;
-        line-height: 1.02 !important;
+        line-height: 1.05 !important;
         color: var(--text-main) !important;
         margin: 0 !important;
         padding: 0 !important;
+        text-align: center !important;
+        justify-content: center !important;
     }
     div[data-testid="stMetricValue"] > div {
         white-space: normal !important;
@@ -114,6 +150,8 @@ st.markdown(
         text-overflow: clip !important;
         margin: 0 !important;
         padding: 0 !important;
+        text-align: center !important;
+        width: 100%;
     }
     div[data-testid="stMetricDelta"] {
         display: none !important;
