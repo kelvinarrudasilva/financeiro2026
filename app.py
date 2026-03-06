@@ -62,8 +62,8 @@ st.markdown(
         color: var(--text-main);
     }
     .block-container {
-        padding-top: 1.2rem !important;
-        padding-bottom: 1.6rem !important;
+        padding-top: 0.9rem !important;
+        padding-bottom: 1.2rem !important;
         max-width: 1480px;
     }
     h1, h2, h3 {
@@ -74,9 +74,13 @@ st.markdown(
         border: 1px solid var(--border-soft);
         box-shadow: 0 10px 30px rgba(0,0,0,0.22);
         border-radius: 22px;
-        padding: 14px 16px;
-        min-height: 116px;
+        padding: 12px 14px 10px 14px;
+        min-height: 92px;
         transition: all .18s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
     }
     div[data-testid="stMetric"]:hover {
         transform: translateY(-2px);
@@ -84,19 +88,49 @@ st.markdown(
         box-shadow: 0 14px 36px rgba(0,0,0,0.28);
     }
     div[data-testid="stMetricLabel"] {
-        font-size: 0.84rem !important;
+        font-size: 0.82rem !important;
         color: var(--text-soft) !important;
         letter-spacing: 0.01em;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    div[data-testid="stMetric"] > div {
+        width: 100%;
+    }
+    div[data-testid="stMetricLabel"] p {
+        margin: 0 !important;
+        line-height: 1.05 !important;
     }
     div[data-testid="stMetricValue"] {
-        font-size: 1.28rem !important;
-        line-height: 1.1 !important;
+        font-size: 1.18rem !important;
+        line-height: 1.02 !important;
         color: var(--text-main) !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     div[data-testid="stMetricValue"] > div {
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    div[data-testid="stMetricDelta"] {
+        display: none !important;
+    }
+    .stPlotlyChart {
+        background: linear-gradient(180deg, rgba(13,17,24,0.84) 0%, rgba(9,12,18,0.86) 100%);
+        border: 1px solid rgba(148,163,184,0.10);
+        border-radius: 20px;
+        padding: 10px 10px 2px 10px;
+        box-shadow: 0 8px 26px rgba(0,0,0,0.20);
+    }
+    .stSubheader {
+        margin-bottom: 0.25rem !important;
+    }
+    div[data-testid="stVerticalBlock"] > div:has(> div > div > .stDataFrame) {
+        background: rgba(9,12,18,0.35);
+        border-radius: 18px;
     }
     .stSelectbox > div > div,
     .stMultiSelect > div > div,
@@ -380,6 +414,7 @@ st.markdown("---")
 # GRÁFICO GERAL
 # =========================
 st.subheader("📊 Balanço Financeiro Geral")
+st.caption("Um painel mais limpo, com contraste melhor e respiro certo entre os blocos.")
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
 cor_receita = "#60A5FA"
@@ -427,9 +462,10 @@ fig.update_layout(
     bargroupgap=0.09,
     uniformtext_minsize=8,
     uniformtext_mode="hide",
-    height=470,
-    margin=dict(l=6, r=6, t=10, b=6),
+    height=450,
+    margin=dict(l=6, r=6, t=12, b=6),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    font=dict(color="#e5edf7", size=12),
 )
 fig.update_xaxes(showgrid=False, tickfont=dict(size=11))
 fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
@@ -489,12 +525,13 @@ if lista_meses:
             template=tema,
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            height=320,
+            height=300,
             margin=dict(l=6, r=6, t=8, b=6),
             xaxis_title="",
             yaxis_title="",
             uniformtext_minsize=8,
             uniformtext_mode="hide",
+            font=dict(color="#e5edf7", size=12),
         )
         fig2.update_xaxes(showgrid=False)
         fig2.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
@@ -600,12 +637,13 @@ else:
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=350,
+                    height=330,
                     margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
                     uniformtext_minsize=10,
                     uniformtext_mode="hide",
+                    font=dict(color="#e5edf7", size=12),
                 )
                 fig3.update_xaxes(showgrid=False)
                 fig3.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
@@ -637,12 +675,13 @@ else:
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=350,
+                    height=330,
                     margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
                     uniformtext_minsize=9,
                     uniformtext_mode="hide",
+                    font=dict(color="#e5edf7", size=12),
                 )
                 fig4.update_xaxes(showgrid=False)
                 fig4.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
