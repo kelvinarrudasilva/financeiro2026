@@ -146,8 +146,8 @@ def ler_planilha(url):
 try:
     xls = carregar_planilha_excel(PLANILHA_URL)
     df = pd.read_excel(xls, sheet_name=0)
-except Exception:
-    st.error("Erro ao carregar planilha.")
+except Exception as e:
+    st.error(f"Erro ao carregar planilha: {e}")
     st.stop()
 
 df = normalizar_colunas(df)
