@@ -47,6 +47,19 @@ st.markdown(
         border: 1px solid rgba(255,255,255,0.06);
         border-radius: 18px;
         padding: 10px 14px;
+        min-height: 112px;
+    }
+    div[data-testid="stMetricLabel"] {
+        font-size: 0.92rem !important;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 1.45rem !important;
+        line-height: 1.15 !important;
+    }
+    div[data-testid="stMetricValue"] > div {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
     .gastos-filtro {
         font-size: 0.95rem;
@@ -95,6 +108,26 @@ def normalizar_colunas(df):
     df.columns = [normalizar_texto(c) for c in df.columns]
     return df
 
+MESES_PT = {
+    1: "JAN", 2: "FEV", 3: "MAR", 4: "ABR", 5: "MAI", 6: "JUN",
+    7: "JUL", 8: "AGO", 9: "SET", 10: "OUT", 11: "NOV", 12: "DEZ"
+}
+
+
+def mes_ano_pt(data):
+    if pd.isna(data):
+        return ""
+    return f"{MESES_PT.get(int(data.month), '')}/{data.year}"
+
+
+def classificar_gasto(valor):
+    txt = normalizar_texto(valor)
+    if "INDISP" in txt:
+        return "INDISPENSAVEL"
+    if "DISP" in txt:
+        return "DISPENSAVEL"
+    return "SEM CLASSIFICACAO"
+
 
 def preparar_base(base):
     base = normalizar_colunas(base)
@@ -115,7 +148,7 @@ def preparar_base(base):
 
     base["ANO"] = base["DATA"].dt.year
     base["MES_NUM"] = base["DATA"].dt.month
-    base["MES"] = base["DATA"].dt.strftime("%b").str.upper()
+    base["MES"] = base["MES_NUM"].map(MESES_PT)
 
     return base
 
@@ -184,20 +217,14 @@ def preparar_gastos(df):
     df = df.dropna(subset=["DATA"])
     df = df[df["NOME"].astype(str).str.strip() != ""]
 
-    df["CLASSIFICACAO"] = (
-        df["CLASSIFICACAO"]
-        .astype(str)
-        .str.strip()
-        .str.upper()
-        .replace({"": "SEM CLASSIFICACAO"})
-    )
+    df["CLASSIFICACAO"] = df["CLASSIFICACAO"].apply(classificar_gasto)
     df["FORMA PAGAMENTO"] = df["FORMA PAGAMENTO"].astype(str).str.strip().replace({"": "NÃO INFORMADO"})
 
     df["QUINZENA"] = df["DATA"].dt.day.apply(lambda x: "1ª quinzena" if x <= 15 else "2ª quinzena")
     df["ANO"] = df["DATA"].dt.year
     df["MES_NUM"] = df["DATA"].dt.month
-    df["MES_ABREV"] = df["DATA"].dt.strftime("%b").str.upper()
-    df["MES_ANO"] = df["DATA"].dt.strftime("%b/%Y").str.upper()
+    df["MES_ABREV"] = df["MES_NUM"].map(MESES_PT)
+    df["MES_ANO"] = df["DATA"].apply(mes_ano_pt)
 
     mes_limpo = df["MES"].astype(str).str.strip()
     df["MES"] = mes_limpo.where(mes_limpo != "", df["MES_ABREV"])
@@ -240,7 +267,7 @@ resumo = pd.merge(rec_m, des_m, on=["ANO", "MES_NUM", "MES"], how="outer").filln
 resumo["SALDO"] = resumo["RECEITA"] - resumo["DESPESA"]
 resumo = resumo.sort_values(["ANO", "MES_NUM"])
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
-resumo["MES_ANO"] = resumo["DATA_CHAVE"].dt.strftime("%b/%Y").str.upper()
+resumo["MES_ANO"] = resumo["DATA_CHAVE"].apply(mes_ano_pt)
 
 # =========================
 # ANO ATUAL
@@ -344,7 +371,7 @@ else:
     prox_mes = mes_atual + 1
     prox_ano = ano_atual
 
-mes_ref = datetime(prox_ano, prox_mes, 1).strftime("%b/%Y").upper()
+mes_ref = mes_ano_pt(datetime(prox_ano, prox_mes, 1))
 lista_meses = resumo["MES_ANO"].tolist()
 
 if lista_meses:
@@ -426,8 +453,8 @@ else:
             quinzena_sel = st.selectbox("🗓️ Quinzena", ["Todas", "1ª quinzena", "2ª quinzena"], index=0)
         with colf3:
             classif_sel = st.selectbox(
-                "👍 Filtro de classificação",
-                ["Todos", "👍 Indispensável", "👎 Dispensável"],
+                "Filtro 👍👎",
+                ["Todos", "Indispensável 👍", "Dispensável 👎"],
                 index=0,
             )
 
@@ -440,11 +467,10 @@ else:
         if quinzena_sel != "Todas":
             gastos_filt = gastos_filt[gastos_filt["QUINZENA"] == quinzena_sel].copy()
 
-        classif_norm = gastos_filt["CLASSIFICACAO"].astype(str).str.upper()
-        if classif_sel == "👍 Indispensável":
-            gastos_filt = gastos_filt[classif_norm == "INDISPENSAVEL"].copy()
-        elif classif_sel == "👎 Dispensável":
-            gastos_filt = gastos_filt[classif_norm == "DISPENSAVEL"].copy()
+        if classif_sel == "Indispensável 👍":
+            gastos_filt = gastos_filt[gastos_filt["CLASSIFICACAO"] == "INDISPENSAVEL"].copy()
+        elif classif_sel == "Dispensável 👎":
+            gastos_filt = gastos_filt[gastos_filt["CLASSIFICACAO"] == "DISPENSAVEL"].copy()
 
         total_gastos = gastos_filt["VALOR"].sum()
         qtd_lanc = len(gastos_filt)
@@ -461,7 +487,7 @@ else:
         m3.metric("👍 Indispensável", formato_real(total_indisp))
         m4.metric("👎 Dispensável", formato_real(total_disp))
 
-        gc1, gc2 = st.columns([1.25, 1])
+        gc1, gc2 = st.columns([1, 1.5])
 
         with gc1:
             st.markdown("#### 📊 Gastos por classificação")
@@ -504,20 +530,26 @@ else:
                 st.plotly_chart(fig3, use_container_width=True)
 
         with gc2:
-            st.markdown("#### 💳 Gastos por forma de pagamento")
+            st.markdown("#### 🧩 Seus gastos item por item")
             if gastos_filt.empty:
                 st.info("Sem gastos nesse filtro.")
             else:
-                graf_pag = (
-                    gastos_filt.groupby("FORMA PAGAMENTO", as_index=False)["VALOR"]
+                graf_itens = (
+                    gastos_filt.groupby("NOME", as_index=False)["VALOR"]
                     .sum()
                     .sort_values("VALOR", ascending=False)
+                    .head(12)
                 )
-                fig4 = go.Figure(go.Pie(
-                    labels=graf_pag["FORMA PAGAMENTO"],
-                    values=graf_pag["VALOR"],
-                    hole=0.52,
-                    textinfo="label+percent",
+
+                fig4 = go.Figure(go.Bar(
+                    x=graf_itens["NOME"],
+                    y=graf_itens["VALOR"],
+                    text=graf_itens["VALOR"].apply(formato_real),
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    textfont=dict(size=12),
+                    marker=dict(line=dict(width=0)),
+                    hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
                 fig4.update_layout(
                     template=tema,
@@ -525,6 +557,10 @@ else:
                     paper_bgcolor="rgba(0,0,0,0)",
                     height=360,
                     margin=dict(l=20, r=20, t=10, b=10),
+                    xaxis_title="",
+                    yaxis_title="",
+                    uniformtext_minsize=9,
+                    uniformtext_mode="hide",
                 )
                 st.plotly_chart(fig4, use_container_width=True)
 
