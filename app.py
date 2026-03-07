@@ -10,28 +10,22 @@ import time
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="🌙 Atlas Financeiro",
+    page_title="Atlas Financeiro",
     page_icon="🌙",
     layout="wide"
 )
 
 # =========================
-# FRASE
+# FRASES
 # =========================
 FRASES = [
     "Disciplina constrói liberdade.",
     "Consistência vence motivação.",
     "Pequenos passos geram grandes resultados.",
-    "Você está construindo algo grande."
+    "Você está construindo algo grande.",
+    "Cada número conta uma escolha.",
+    "O futuro gosta de quem se organiza no presente."
 ]
-
-st.markdown("""
-<div class="hero-wrap">
-  <div class="hero-title">🌙 Atlas Financeiro</div>
-  <div class="hero-sub">Seu painel financeiro em modo noturno, limpo e elegante.</div>
-</div>
-""", unsafe_allow_html=True)
-st.caption(random.choice(FRASES))
 
 # =========================
 # PLANILHA
@@ -48,178 +42,224 @@ PLANILHA_URL = (
 if "refresh_key" not in st.session_state:
     st.session_state.refresh_key = str(time.time())
 
-col_refresh_1, col_refresh_2 = st.columns([1, 6])
-with col_refresh_1:
-    if st.button("🔄 Atualizar planilha agora", use_container_width=True):
-        st.cache_data.clear()
-        st.session_state.refresh_key = str(time.time())
-        st.rerun()
-with col_refresh_2:
-    st.caption("Se você lançou algo agora na planilha e não apareceu, aperta esse botão. Cache te ama, mas às vezes exagera.")
-
 # =========================
-# ESTILO EXTRA
+# ESTILO
 # =========================
-st.markdown(
-    """
-    <style>
-    :root {
-        --bg-main: #05070b;
-        --bg-soft: #0c1017;
-        --bg-card: linear-gradient(180deg, rgba(19,24,34,0.92) 0%, rgba(10,13,19,0.96) 100%);
-        --border-soft: rgba(148, 163, 184, 0.14);
-        --border-strong: rgba(99, 102, 241, 0.20);
-        --text-main: #edf2f7;
-        --text-soft: #96a2b4;
-        --accent: #6ee7b7;
-        --accent-2: #60a5fa;
-        --accent-3: #a78bfa;
-    }
-    .stApp {
-        background:
-            radial-gradient(circle at top left, rgba(96,165,250,0.10), transparent 26%),
-            radial-gradient(circle at top right, rgba(167,139,250,0.08), transparent 24%),
-            linear-gradient(180deg, #04060a 0%, #070b12 100%);
-        color: var(--text-main);
-    }
-    .block-container {
-        padding-top: 1.1rem !important;
-        padding-bottom: 1.2rem !important;
-        max-width: 1480px;
-    }
-    h1, h2, h3 {
-        letter-spacing: -0.02em;
-    }
-    .hero-wrap {
-        padding: 2px 0 4px 0;
-        margin-bottom: 2px;
-    }
-    .hero-title {
-        font-size: 2.05rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        line-height: 1.2;
-        color: var(--text-main);
-        margin: 0;
-        padding: 0;
-    }
-    .hero-sub {
-        color: var(--text-soft);
-        font-size: 0.96rem;
-        margin-top: 2px;
-    }
-    div[data-testid="stMetric"] {
-        background: var(--bg-card);
-        border: 1px solid var(--border-soft);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-        border-radius: 22px;
-        padding: 12px 12px 10px 12px;
-        min-height: 90px;
-        transition: all .18s ease;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        gap: 2px;
-    }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        border-color: var(--border-strong);
-        box-shadow: 0 14px 36px rgba(0,0,0,0.28);
-    }
-    div[data-testid="stMetricLabel"] {
-        font-size: 0.82rem !important;
-        color: var(--text-soft) !important;
-        letter-spacing: 0.01em;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-        text-align: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="stMetric"] > div {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
-    div[data-testid="stMetricLabel"] p {
-        margin: 0 !important;
-        line-height: 1.05 !important;
-        text-align: center !important;
-        width: 100%;
-    }
-    div[data-testid="stMetricValue"] {
-        font-size: 1.18rem !important;
-        line-height: 1.05 !important;
-        color: var(--text-main) !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
-        justify-content: center !important;
-    }
-    div[data-testid="stMetricValue"] > div {
-        white-space: normal !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
-        width: 100%;
-    }
-    div[data-testid="stMetricDelta"] {
-        display: none !important;
-    }
-    .stPlotlyChart {
-        background: linear-gradient(180deg, rgba(13,17,24,0.84) 0%, rgba(9,12,18,0.86) 100%);
-        border: 1px solid rgba(148,163,184,0.10);
-        border-radius: 20px;
-        padding: 10px 10px 2px 10px;
-        box-shadow: 0 8px 26px rgba(0,0,0,0.20);
-    }
-    .stSubheader {
-        margin-bottom: 0.25rem !important;
-    }
-    div[data-testid="stVerticalBlock"] > div:has(> div > div > .stDataFrame) {
-        background: rgba(9,12,18,0.35);
-        border-radius: 18px;
-    }
-    .stSelectbox > div > div,
-    .stMultiSelect > div > div,
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="base-input"] {
-        background: rgba(12,16,23,0.92) !important;
-        border: 1px solid rgba(148,163,184,0.14) !important;
-        border-radius: 16px !important;
-        min-height: 46px;
-        box-shadow: none !important;
-    }
-    .stDataFrame {
-        border: 1px solid rgba(148,163,184,0.10);
-        border-radius: 18px;
-        overflow: hidden;
-    }
-    .gastos-filtro {
-        font-size: 0.94rem;
-        color: var(--text-soft);
-        opacity: 0.98;
-        margin: -2px 0 10px 0;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: rgba(12,16,23,0.65);
-        border: 1px solid rgba(148,163,184,0.10);
-    }
-    hr {
-        border-color: rgba(148,163,184,0.10) !important;
-        margin-top: 1rem !important;
-        margin-bottom: 1rem !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<style>
+:root{
+    --bg:#06080d;
+    --bg-2:#0b1018;
+    --bg-3:#121826;
+    --card:rgba(15,20,31,.78);
+    --card-2:rgba(18,24,36,.88);
+    --stroke:rgba(255,255,255,.08);
+    --stroke-2:rgba(255,255,255,.13);
+    --text:#edf2f7;
+    --muted:#9aa8bc;
+    --blue:#6ea8ff;
+    --green:#72e0b5;
+    --red:#ff8c8c;
+    --purple:#b497ff;
+    --yellow:#ffd36a;
+    --shadow:0 14px 35px rgba(0,0,0,.28);
+    --radius:22px;
+}
+.stApp{
+    background:
+        radial-gradient(circle at 12% 0%, rgba(110,168,255,.12), transparent 25%),
+        radial-gradient(circle at 100% 0%, rgba(180,151,255,.10), transparent 22%),
+        linear-gradient(180deg, #05070c 0%, #0a0f17 100%);
+    color:var(--text);
+}
+.block-container{
+    max-width:1480px;
+    padding-top:1.2rem !important;
+    padding-bottom:1.5rem !important;
+}
+.hero{
+    position:relative;
+    overflow:hidden;
+    padding:24px 24px 18px 24px;
+    border:1px solid var(--stroke);
+    border-radius:28px;
+    background:
+        linear-gradient(135deg, rgba(18,24,36,.92) 0%, rgba(10,14,22,.96) 100%);
+    box-shadow:var(--shadow);
+    margin-bottom:12px;
+}
+.hero:before{
+    content:"";
+    position:absolute;
+    inset:auto -80px -80px auto;
+    width:220px;
+    height:220px;
+    background:radial-gradient(circle, rgba(110,168,255,.18), transparent 65%);
+    pointer-events:none;
+}
+.hero:after{
+    content:"";
+    position:absolute;
+    inset:-70px auto auto -70px;
+    width:190px;
+    height:190px;
+    background:radial-gradient(circle, rgba(180,151,255,.14), transparent 65%);
+    pointer-events:none;
+}
+.hero-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:18px;
+    flex-wrap:wrap;
+}
+.hero-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 12px;
+    border-radius:999px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);
+    color:#d8e3f2;
+    font-size:.82rem;
+    margin-bottom:10px;
+}
+.hero-title{
+    font-size:2.15rem;
+    font-weight:800;
+    letter-spacing:-.04em;
+    line-height:1.1;
+    margin:0;
+}
+.hero-sub{
+    color:var(--muted);
+    font-size:1rem;
+    margin-top:6px;
+}
+.hero-quote{
+    color:#d7e1ef;
+    font-size:.92rem;
+    padding:12px 14px;
+    border-radius:18px;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.06);
+    min-width:260px;
+    max-width:420px;
+}
+.section-card{
+    background:linear-gradient(180deg, rgba(15,20,31,.78), rgba(11,15,23,.86));
+    border:1px solid var(--stroke);
+    border-radius:24px;
+    padding:16px 16px 10px 16px;
+    box-shadow:var(--shadow);
+}
+.section-title{
+    font-size:1.05rem;
+    font-weight:700;
+    letter-spacing:-.02em;
+    margin-bottom:4px;
+}
+.section-sub{
+    color:var(--muted);
+    font-size:.92rem;
+    margin-bottom:8px;
+}
+div[data-testid="stMetric"]{
+    background:linear-gradient(180deg, rgba(17,23,35,.94) 0%, rgba(10,14,22,.98) 100%);
+    border:1px solid var(--stroke);
+    box-shadow:var(--shadow);
+    border-radius:22px;
+    padding:14px 12px 12px 12px;
+    min-height:96px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    transition:all .18s ease;
+}
+div[data-testid="stMetric"]:hover{
+    transform:translateY(-2px);
+    border-color:rgba(255,255,255,.15);
+}
+div[data-testid="stMetricLabel"]{
+    font-size:.83rem !important;
+    color:var(--muted) !important;
+    text-align:center !important;
+    justify-content:center !important;
+}
+div[data-testid="stMetricLabel"] p{
+    margin:0 !important;
+    line-height:1.08 !important;
+    text-align:center !important;
+}
+div[data-testid="stMetricValue"]{
+    font-size:1.20rem !important;
+    color:var(--text) !important;
+    line-height:1.05 !important;
+    text-align:center !important;
+    justify-content:center !important;
+}
+div[data-testid="stMetricValue"] > div{
+    white-space:normal !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    text-align:center !important;
+}
+div[data-testid="stMetricDelta"]{
+    display:none !important;
+}
+.stPlotlyChart{
+    background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88));
+    border:1px solid var(--stroke);
+    border-radius:22px;
+    padding:10px 10px 2px 10px;
+    box-shadow:var(--shadow);
+}
+.stDataFrame{
+    border:1px solid var(--stroke) !important;
+    border-radius:20px !important;
+    overflow:hidden !important;
+}
+.stSelectbox > div > div,
+div[data-baseweb="select"] > div,
+div[data-baseweb="base-input"]{
+    background:rgba(12,17,26,.9) !important;
+    border:1px solid var(--stroke) !important;
+    border-radius:16px !important;
+    min-height:46px;
+}
+div.stButton > button{
+    min-height:46px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,.10);
+    background:linear-gradient(135deg, rgba(110,168,255,.18), rgba(180,151,255,.16));
+    color:#eef4ff;
+    font-weight:600;
+}
+div.stButton > button:hover{
+    border-color:rgba(255,255,255,.18);
+    background:linear-gradient(135deg, rgba(110,168,255,.24), rgba(180,151,255,.22));
+}
+.soft-note{
+    font-size:.92rem;
+    color:var(--muted);
+    padding:11px 13px;
+    border-radius:16px;
+    background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.06);
+    margin:4px 0 8px 0;
+}
+hr{
+    border-color:rgba(255,255,255,.08) !important;
+    margin-top:1rem !important;
+    margin-bottom:1rem !important;
+}
+.small-gap{
+    height:6px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
 # FUNÇÕES
@@ -390,6 +430,31 @@ def preparar_gastos(df):
 
 
 # =========================
+# HERO
+# =========================
+st.markdown(f"""
+<div class="hero">
+    <div class="hero-top">
+        <div>
+            <div class="hero-badge">🌙 Painel financeiro pessoal</div>
+            <div class="hero-title">Atlas Financeiro</div>
+            <div class="hero-sub">Organização, clareza e visão do todo. Um mapa limpo para o seu dinheiro.</div>
+        </div>
+        <div class="hero-quote">“{random.choice(FRASES)}”</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+col_refresh_1, col_refresh_2 = st.columns([1.2, 4.5])
+with col_refresh_1:
+    if st.button("🔄 Atualizar agora", use_container_width=True):
+        st.cache_data.clear()
+        st.session_state.refresh_key = str(time.time())
+        st.rerun()
+with col_refresh_2:
+    st.markdown('<div class="soft-note">Lançou algo na planilha e ele não apareceu? Dá um tapa elegante no cache com esse botão.</div>', unsafe_allow_html=True)
+
+# =========================
 # LEITURA
 # =========================
 try:
@@ -438,9 +503,7 @@ total_receita_ano = resumo_ano["RECEITA"].sum()
 total_despesa_ano = resumo_ano["DESPESA"].sum()
 saldo_ano = resumo_ano["SALDO"].sum()
 
-saldo_restante = resumo_ano[
-    resumo_ano["MES_NUM"] > mes_atual
-]["SALDO"].sum()
+saldo_restante = resumo_ano[resumo_ano["MES_NUM"] > mes_atual]["SALDO"].sum()
 
 # =========================
 # INVESTIMENTO
@@ -460,8 +523,9 @@ patrimonio_em_construcao = saldo_restante + valor_investido
 # =========================
 # MÉTRICAS
 # =========================
-c1, c2, c3, c4, c5, c6 = st.columns(6)
+st.markdown('<div class="section-title">Visão do ano</div><div class="section-sub">Os números grandes primeiro. O dinheiro gosta quando a gente olha pra ele sem medo.</div>', unsafe_allow_html=True)
 
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("💵 Receita no Ano", formato_real(total_receita_ano))
 c2.metric("💸 Despesa no Ano", formato_real(total_despesa_ano))
 c3.metric("🏦 Saldo no Ano", formato_real(saldo_ano))
@@ -469,19 +533,20 @@ c4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
 c5.metric("📈 Investido", formato_real(valor_investido))
 c6.metric("💎 Total em Construção", formato_real(patrimonio_em_construcao))
 
-st.markdown("---")
+st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
 
 # =========================
 # GRÁFICO GERAL
 # =========================
-st.subheader("📊 Balanço Financeiro Geral")
-st.caption("Um painel mais limpo, com contraste melhor e respiro certo entre os blocos.")
+st.markdown('<div class="section-card">', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📊 Balanço Financeiro Geral</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-sub">Receitas, despesas e saldo mês a mês. Uma constelação de barras pra mostrar onde a maré sobe e onde baixa.</div>', unsafe_allow_html=True)
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
-cor_receita = "#60A5FA"
-cor_despesa = "#F87171"
-cor_saldo = "#6EE7B7"
-cor_destaque = "#A78BFA"
+cor_receita = "#6EA8FF"
+cor_despesa = "#FF8C8C"
+cor_saldo = "#72E0B5"
+cor_destaque = "#B497FF"
 
 fig = go.Figure()
 fig.add_bar(
@@ -493,6 +558,7 @@ fig.add_bar(
     textfont=dict(size=11, color="#f8fafc"),
     marker=dict(color=cor_receita, line=dict(width=0)),
     insidetextanchor="middle",
+    borderradius=8
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -503,6 +569,7 @@ fig.add_bar(
     textfont=dict(size=11, color="#f8fafc"),
     marker=dict(color=cor_despesa, line=dict(width=0)),
     insidetextanchor="middle",
+    borderradius=8
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -513,25 +580,33 @@ fig.add_bar(
     textfont=dict(size=11, color="#081018"),
     marker=dict(color=cor_saldo, line=dict(width=0)),
     insidetextanchor="middle",
+    borderradius=8
 )
 fig.update_layout(
     template=tema,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     barmode="group",
-    bargap=0.22,
-    bargroupgap=0.09,
+    bargap=0.24,
+    bargroupgap=0.08,
     uniformtext_minsize=8,
     uniformtext_mode="hide",
-    height=450,
-    margin=dict(l=6, r=6, t=12, b=6),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=455,
+    margin=dict(l=6, r=6, t=10, b=6),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        bgcolor="rgba(0,0,0,0)"
+    ),
     font=dict(color="#e5edf7", size=12),
 )
 fig.update_xaxes(showgrid=False, tickfont=dict(size=11))
 fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
-
 st.plotly_chart(fig, use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================
 # SELECTBOX DINÂMICO (PRÓXIMO MÊS)
@@ -550,7 +625,12 @@ lista_meses = resumo["MES_ANO"].tolist()
 
 if lista_meses:
     idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses) - 1
-    mes_sel = st.selectbox("📅 Escolha o mês", lista_meses, index=idx_default)
+
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📅 Raio-X do mês</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Aqui o foco afunila. Você escolhe o mês e ele conta a história sem enrolação.</div>', unsafe_allow_html=True)
+
+    mes_sel = st.selectbox("Escolha o mês", lista_meses, index=idx_default)
 
     mes_txt, ano_sel = mes_sel.split("/")
     ano_sel = int(ano_sel)
@@ -558,13 +638,14 @@ if lista_meses:
     rec_mes = receitas[(receitas["ANO"] == ano_sel) & (receitas["MES"] == mes_txt)]
     des_mes = despesas[(despesas["ANO"] == ano_sel) & (despesas["MES"] == mes_txt)]
 
-    st.subheader(f"📆 Resumo — {mes_sel}")
     c1, c2, c3 = st.columns(3)
     c1.metric("💵 Receitas", formato_real(rec_mes["VALOR"].sum()))
     c2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
     c3.metric("🏦 Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
 
-    st.subheader("💸 Despesas do Mês Selecionado")
+    st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
+    st.markdown("#### 💸 Despesas do mês selecionado")
+
     if not des_mes.empty:
         despesas_total = (
             des_mes.groupby("DESCRICAO", as_index=False)["VALOR"]
@@ -572,6 +653,7 @@ if lista_meses:
             .sort_values("VALOR", ascending=False)
             .head(12)
         )
+
         fig2 = go.Figure(go.Bar(
             x=despesas_total["DESCRICAO"],
             y=despesas_total["VALOR"],
@@ -586,7 +668,7 @@ if lista_meses:
             template=tema,
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            height=300,
+            height=320,
             margin=dict(l=6, r=6, t=8, b=6),
             xaxis_title="",
             yaxis_title="",
@@ -599,15 +681,18 @@ if lista_meses:
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("Sem despesas neste mês.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     st.info("Não encontrei meses válidos na base principal.")
 
 # =========================
-# GASTOS VARIÁVEIS — TABELINHA + GRÁFICO
+# GASTOS VARIÁVEIS
 # =========================
 st.markdown("---")
-st.subheader("🧾 Gastos variáveis")
-st.caption("Controle do que saiu fora dos gastos fixos, com leitura por mês e quinzena.")
+st.markdown('<div class="section-card">', unsafe_allow_html=True)
+st.markdown('<div class="section-title">🧾 Gastos variáveis</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-sub">O que escapa dos gastos fixos aparece aqui. Sem fumaça, sem truque, só rastro do dinheiro.</div>', unsafe_allow_html=True)
 
 aba_gastos = encontrar_aba_gastos(nomes_abas)
 
@@ -624,24 +709,21 @@ else:
         mes_padrao = mes_ano_pt(datetime.now())
         idx_mes_gasto = meses_gastos.index(mes_padrao) if mes_padrao in meses_gastos else 0
 
-        colf1, colf2, colf3 = st.columns([1.6, 1, 1.2])
+        colf1, colf2, colf3 = st.columns([1.5, 1, 1.2])
         with colf1:
             mes_gasto_sel = st.selectbox("📅 Mês dos gastos", meses_gastos, index=idx_mes_gasto)
         with colf2:
             quinzena_sel = st.selectbox("🗓️ Quinzena", ["Todas", "1ª quinzena", "2ª quinzena"], index=0)
         with colf3:
-            classif_sel = st.selectbox(
-                "Filtro 👍👎",
-                ["Todos", "Indispensável 👍", "Dispensável 👎"],
-                index=0,
-            )
+            classif_sel = st.selectbox("Filtro", ["Todos", "Indispensável 👍", "Dispensável 👎"], index=0)
 
         st.markdown(
-            '<div class="gastos-filtro">👍 indispensável = gasto necessário • 👎 dispensável = gasto que dá pra segurar</div>',
+            '<div class="soft-note">👍 indispensável = necessário • 👎 dispensável = dá pra segurar</div>',
             unsafe_allow_html=True,
         )
 
         gastos_filt = gastos[gastos["MES_ANO"] == mes_gasto_sel].copy()
+
         if quinzena_sel != "Todas":
             gastos_filt = gastos_filt[gastos_filt["QUINZENA"] == quinzena_sel].copy()
 
@@ -665,7 +747,7 @@ else:
         m3.metric("👍 Indispensável", formato_real(total_indisp))
         m4.metric("👎 Dispensável", formato_real(total_disp))
 
-        gc1, gc2 = st.columns([1, 1.5])
+        gc1, gc2 = st.columns([1, 1.45])
 
         with gc1:
             st.markdown("#### 📊 Gastos por classificação")
@@ -687,11 +769,11 @@ else:
                 cores_classificacao = []
                 for item in graf_class["CLASSIFICACAO_LABEL"]:
                     if "Indispensável" in item:
-                        cores_classificacao.append("#6EE7B7")
+                        cores_classificacao.append("#72E0B5")
                     elif "Dispensável" in item:
-                        cores_classificacao.append("#FCA5A5")
+                        cores_classificacao.append("#FF9B9B")
                     else:
-                        cores_classificacao.append("#93C5FD")
+                        cores_classificacao.append("#8CB9FF")
 
                 fig3 = go.Figure(go.Bar(
                     x=graf_class["CLASSIFICACAO_LABEL"],
@@ -707,7 +789,7 @@ else:
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=330,
+                    height=340,
                     margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
@@ -745,7 +827,7 @@ else:
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    height=330,
+                    height=340,
                     margin=dict(l=12, r=12, t=8, b=6),
                     xaxis_title="",
                     yaxis_title="",
@@ -782,3 +864,5 @@ else:
             use_container_width=True,
             hide_index=True,
         )
+
+st.markdown('</div>', unsafe_allow_html=True)
