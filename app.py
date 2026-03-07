@@ -540,7 +540,7 @@ st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
 # =========================
 st.markdown('<div class="section-card">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">📊 Balanço Financeiro Geral</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Receitas, despesas e saldo mês a mês. Uma constelação de barras pra mostrar onde a maré sobe e onde baixa.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-sub">Receitas, despesas e saldo mês a mês.</div>', unsafe_allow_html=True)
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
 cor_receita = "#6EA8FF"
@@ -558,7 +558,6 @@ fig.add_bar(
     textfont=dict(size=11, color="#f8fafc"),
     marker=dict(color=cor_receita, line=dict(width=0)),
     insidetextanchor="middle",
-    borderradius=8
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -569,7 +568,6 @@ fig.add_bar(
     textfont=dict(size=11, color="#f8fafc"),
     marker=dict(color=cor_despesa, line=dict(width=0)),
     insidetextanchor="middle",
-    borderradius=8
 )
 fig.add_bar(
     x=resumo["MES_ANO"],
@@ -580,7 +578,6 @@ fig.add_bar(
     textfont=dict(size=11, color="#081018"),
     marker=dict(color=cor_saldo, line=dict(width=0)),
     insidetextanchor="middle",
-    borderradius=8
 )
 fig.update_layout(
     template=tema,
@@ -628,7 +625,7 @@ if lista_meses:
 
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">📅 Raio-X do mês</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">Aqui o foco afunila. Você escolhe o mês e ele conta a história sem enrolação.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Você escolhe o mês e ele conta a história sem enrolação.</div>', unsafe_allow_html=True)
 
     mes_sel = st.selectbox("Escolha o mês", lista_meses, index=idx_default)
 
@@ -692,7 +689,7 @@ else:
 st.markdown("---")
 st.markdown('<div class="section-card">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">🧾 Gastos variáveis</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">O que escapa dos gastos fixos aparece aqui. Sem fumaça, sem truque, só rastro do dinheiro.</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-sub">O que escapa dos gastos fixos aparece aqui.</div>', unsafe_allow_html=True)
 
 aba_gastos = encontrar_aba_gastos(nomes_abas)
 
