@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 import random
 import unicodedata
+import time
 
 # =========================
 # CONFIG
@@ -40,6 +41,21 @@ PLANILHA_URL = (
     "1lI55tMA0GkpZ2D4EF8PPHQ4d5z3NNAKH"
     "/export?format=xlsx"
 )
+
+# =========================
+# CONTROLE DE ATUALIZAÇÃO
+# =========================
+if "refresh_key" not in st.session_state:
+    st.session_state.refresh_key = str(time.time())
+
+col_refresh_1, col_refresh_2 = st.columns([1, 6])
+with col_refresh_1:
+    if st.button("🔄 Atualizar planilha agora", use_container_width=True):
+        st.cache_data.clear()
+        st.session_state.refresh_key = str(time.time())
+        st.rerun()
+with col_refresh_2:
+    st.caption("Se você lançou algo agora na planilha e não apareceu, aperta esse botão. Cache te ama, mas às vezes exagera.")
 
 # =========================
 # ESTILO EXTRA
@@ -242,6 +258,7 @@ def normalizar_colunas(df):
     df.columns = [normalizar_texto(c) for c in df.columns]
     return df
 
+
 MESES_PT = {
     1: "JAN", 2: "FEV", 3: "MAR", 4: "ABR", 5: "MAI", 6: "JUN",
     7: "JUL", 8: "AGO", 9: "SET", 10: "OUT", 11: "NOV", 12: "DEZ"
@@ -287,8 +304,8 @@ def preparar_base(base):
     return base
 
 
-@st.cache_data(show_spinner=False)
-def carregar_planilhas(url):
+@st.cache_data(show_spinner=False, ttl=60)
+def carregar_planilhas(url, refresh_key):
     xls = pd.ExcelFile(url)
     planilhas = {nome: pd.read_excel(xls, sheet_name=nome) for nome in xls.sheet_names}
     return planilhas, xls.sheet_names
@@ -352,7 +369,13 @@ def preparar_gastos(df):
     df = df[df["NOME"].astype(str).str.strip() != ""]
 
     df["CLASSIFICACAO"] = df["CLASSIFICACAO"].apply(classificar_gasto)
-    df["FORMA PAGAMENTO"] = df["FORMA PAGAMENTO"].astype(str).str.strip().replace({"": "NÃO INFORMADO"})
+    df["FORMA PAGAMENTO"] = (
+        df["FORMA PAGAMENTO"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace({"": "NÃO INFORMADO"})
+    )
 
     df["QUINZENA"] = df["DATA"].dt.day.apply(lambda x: "1ª quinzena" if x <= 15 else "2ª quinzena")
     df["ANO"] = df["DATA"].dt.year
@@ -360,7 +383,7 @@ def preparar_gastos(df):
     df["MES_ABREV"] = df["MES_NUM"].map(MESES_PT)
     df["MES_ANO"] = df["DATA"].apply(mes_ano_pt)
 
-    mes_limpo = df["MES"].astype(str).str.strip()
+    mes_limpo = df["MES"].fillna("").astype(str).str.strip().str.upper()
     df["MES"] = mes_limpo.where(mes_limpo != "", df["MES_ABREV"])
 
     return df.sort_values("DATA", ascending=False)
@@ -370,7 +393,7 @@ def preparar_gastos(df):
 # LEITURA
 # =========================
 try:
-    planilhas, nomes_abas = carregar_planilhas(PLANILHA_URL)
+    planilhas, nomes_abas = carregar_planilhas(PLANILHA_URL, st.session_state.refresh_key)
 except Exception as e:
     st.error(f"Erro ao carregar planilha: {e}")
     st.stop()
@@ -598,7 +621,7 @@ else:
         st.warning(f"Encontrei a aba '{aba_gastos}', mas não consegui montar a base de gastos. Confere se ela tem pelo menos DATA, NOME e VALOR.")
     else:
         meses_gastos = sorted(gastos["MES_ANO"].dropna().unique().tolist(), reverse=True)
-        mes_padrao = datetime.now().strftime("%b/%Y").upper()
+        mes_padrao = mes_ano_pt(datetime.now())
         idx_mes_gasto = meses_gastos.index(mes_padrao) if mes_padrao in meses_gastos else 0
 
         colf1, colf2, colf3 = st.columns([1.6, 1, 1.2])
@@ -614,7 +637,7 @@ else:
             )
 
         st.markdown(
-            '<div class="gastos-filtro">👍 indispensável = gasto necessário &nbsp;&nbsp;•&nbsp;&nbsp; 👎 dispensável = gasto que dá pra segurar</div>',
+            '<div class="gastos-filtro">👍 indispensável = gasto necessário • 👎 dispensável = gasto que dá pra segurar</div>',
             unsafe_allow_html=True,
         )
 
@@ -661,6 +684,15 @@ else:
                     .sort_values("VALOR", ascending=False)
                 )
 
+                cores_classificacao = []
+                for item in graf_class["CLASSIFICACAO_LABEL"]:
+                    if "Indispensável" in item:
+                        cores_classificacao.append("#6EE7B7")
+                    elif "Dispensável" in item:
+                        cores_classificacao.append("#FCA5A5")
+                    else:
+                        cores_classificacao.append("#93C5FD")
+
                 fig3 = go.Figure(go.Bar(
                     x=graf_class["CLASSIFICACAO_LABEL"],
                     y=graf_class["VALOR"],
@@ -668,7 +700,7 @@ else:
                     textposition="inside",
                     insidetextanchor="middle",
                     textfont=dict(size=13, color="#081018"),
-                    marker=dict(color=["#6EE7B7", "#FCA5A5", "#93C5FD"][:len(graf_class)], line=dict(width=0)),
+                    marker=dict(color=cores_classificacao, line=dict(width=0)),
                     hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
                 fig3.update_layout(
