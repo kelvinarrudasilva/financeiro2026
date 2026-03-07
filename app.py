@@ -65,6 +65,7 @@ st.markdown("""
     --shadow:0 14px 35px rgba(0,0,0,.28);
     --radius:22px;
 }
+
 .stApp{
     background:
         radial-gradient(circle at 12% 0%, rgba(110,168,255,.12), transparent 25%),
@@ -72,19 +73,20 @@ st.markdown("""
         linear-gradient(180deg, #05070c 0%, #0a0f17 100%);
     color:var(--text);
 }
+
 .block-container{
     max-width:1480px;
-    padding-top:1.2rem !important;
-    padding-bottom:1.5rem !important;
+    padding-top:1.1rem !important;
+    padding-bottom:1.4rem !important;
 }
+
 .hero{
     position:relative;
     overflow:hidden;
     padding:24px 24px 18px 24px;
     border:1px solid var(--stroke);
     border-radius:28px;
-    background:
-        linear-gradient(135deg, rgba(18,24,36,.92) 0%, rgba(10,14,22,.96) 100%);
+    background:linear-gradient(135deg, rgba(18,24,36,.92) 0%, rgba(10,14,22,.96) 100%);
     box-shadow:var(--shadow);
     margin-bottom:12px;
 }
@@ -147,31 +149,30 @@ st.markdown("""
     min-width:260px;
     max-width:420px;
 }
-.section-card{
-    background:linear-gradient(180deg, rgba(15,20,31,.78), rgba(11,15,23,.86));
-    border:1px solid var(--stroke);
-    border-radius:24px;
-    padding:16px 16px 10px 16px;
-    box-shadow:var(--shadow);
+
+.section-head{
+    margin: 10px 0 8px 0;
 }
 .section-title{
-    font-size:1.05rem;
-    font-weight:700;
+    font-size:1.08rem;
+    font-weight:800;
     letter-spacing:-.02em;
-    margin-bottom:4px;
+    color:#eef3fb;
+    margin-bottom:2px;
 }
 .section-sub{
-    color:var(--muted);
-    font-size:.92rem;
+    color:#9aa8bc;
+    font-size:.93rem;
     margin-bottom:8px;
 }
+
 div[data-testid="stMetric"]{
-    background:linear-gradient(180deg, rgba(17,23,35,.94) 0%, rgba(10,14,22,.98) 100%);
-    border:1px solid var(--stroke);
-    box-shadow:var(--shadow);
-    border-radius:22px;
-    padding:14px 12px 12px 12px;
-    min-height:96px;
+    background:linear-gradient(180deg, rgba(17,23,35,.96) 0%, rgba(10,14,22,.99) 100%);
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 12px 28px rgba(0,0,0,.24);
+    border-radius:20px;
+    padding:16px 12px 14px 12px;
+    min-height:102px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -180,23 +181,24 @@ div[data-testid="stMetric"]{
 }
 div[data-testid="stMetric"]:hover{
     transform:translateY(-2px);
-    border-color:rgba(255,255,255,.15);
+    border-color:rgba(255,255,255,.14);
 }
 div[data-testid="stMetricLabel"]{
-    font-size:.83rem !important;
-    color:var(--muted) !important;
+    font-size:.88rem !important;
+    color:#98a6ba !important;
     text-align:center !important;
     justify-content:center !important;
 }
 div[data-testid="stMetricLabel"] p{
     margin:0 !important;
-    line-height:1.08 !important;
+    line-height:1.1 !important;
     text-align:center !important;
 }
 div[data-testid="stMetricValue"]{
-    font-size:1.20rem !important;
-    color:var(--text) !important;
-    line-height:1.05 !important;
+    font-size:1.42rem !important;
+    font-weight:800 !important;
+    color:#f3f7ff !important;
+    line-height:1.08 !important;
     text-align:center !important;
     justify-content:center !important;
 }
@@ -209,6 +211,7 @@ div[data-testid="stMetricValue"] > div{
 div[data-testid="stMetricDelta"]{
     display:none !important;
 }
+
 .stPlotlyChart{
     background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88));
     border:1px solid var(--stroke);
@@ -216,11 +219,13 @@ div[data-testid="stMetricDelta"]{
     padding:10px 10px 2px 10px;
     box-shadow:var(--shadow);
 }
+
 .stDataFrame{
     border:1px solid var(--stroke) !important;
     border-radius:20px !important;
     overflow:hidden !important;
 }
+
 .stSelectbox > div > div,
 div[data-baseweb="select"] > div,
 div[data-baseweb="base-input"]{
@@ -229,6 +234,7 @@ div[data-baseweb="base-input"]{
     border-radius:16px !important;
     min-height:46px;
 }
+
 div.stButton > button{
     min-height:46px;
     border-radius:16px;
@@ -241,6 +247,7 @@ div.stButton > button:hover{
     border-color:rgba(255,255,255,.18);
     background:linear-gradient(135deg, rgba(110,168,255,.24), rgba(180,151,255,.22));
 }
+
 .soft-note{
     font-size:.92rem;
     color:var(--muted);
@@ -248,15 +255,17 @@ div.stButton > button:hover{
     border-radius:16px;
     background:rgba(255,255,255,.035);
     border:1px solid rgba(255,255,255,.06);
-    margin:4px 0 8px 0;
+    margin:6px 0 10px 0;
 }
+
+.small-gap{
+    height:6px;
+}
+
 hr{
     border-color:rgba(255,255,255,.08) !important;
     margin-top:1rem !important;
     margin-bottom:1rem !important;
-}
-.small-gap{
-    height:6px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -452,7 +461,10 @@ with col_refresh_1:
         st.session_state.refresh_key = str(time.time())
         st.rerun()
 with col_refresh_2:
-    st.markdown('<div class="soft-note">Lançou algo na planilha e ele não apareceu? Dá um tapa elegante no cache com esse botão.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="soft-note">Lançou algo na planilha e ele não apareceu? Dá um tapa elegante no cache com esse botão.</div>',
+        unsafe_allow_html=True
+    )
 
 # =========================
 # LEITURA
@@ -523,7 +535,12 @@ patrimonio_em_construcao = saldo_restante + valor_investido
 # =========================
 # MÉTRICAS
 # =========================
-st.markdown('<div class="section-title">Visão do ano</div><div class="section-sub">Os números grandes primeiro. O dinheiro gosta quando a gente olha pra ele sem medo.</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="section-head">
+    <div class="section-title">Visão do ano</div>
+    <div class="section-sub">Os números grandes primeiro. Clareza antes de pressa.</div>
+</div>
+""", unsafe_allow_html=True)
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("💵 Receita no Ano", formato_real(total_receita_ano))
@@ -538,9 +555,12 @@ st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
 # =========================
 # GRÁFICO GERAL
 # =========================
-st.markdown('<div class="section-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">📊 Balanço Financeiro Geral</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">Receitas, despesas e saldo mês a mês.</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="section-head">
+    <div class="section-title">📊 Balanço Financeiro Geral</div>
+    <div class="section-sub">Receitas, despesas e saldo mês a mês.</div>
+</div>
+""", unsafe_allow_html=True)
 
 tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
 cor_receita = "#6EA8FF"
@@ -603,7 +623,6 @@ fig.update_layout(
 fig.update_xaxes(showgrid=False, tickfont=dict(size=11))
 fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
 st.plotly_chart(fig, use_container_width=True)
-st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================
 # SELECTBOX DINÂMICO (PRÓXIMO MÊS)
@@ -623,9 +642,12 @@ lista_meses = resumo["MES_ANO"].tolist()
 if lista_meses:
     idx_default = lista_meses.index(mes_ref) if mes_ref in lista_meses else len(lista_meses) - 1
 
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📅 Raio-X do mês</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">Você escolhe o mês e ele conta a história sem enrolação.</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="section-head">
+        <div class="section-title">📅 Raio-X do mês</div>
+        <div class="section-sub">Você escolhe o mês e ele conta a história sem enrolação.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     mes_sel = st.selectbox("Escolha o mês", lista_meses, index=idx_default)
 
@@ -678,8 +700,6 @@ if lista_meses:
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("Sem despesas neste mês.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 else:
     st.info("Não encontrei meses válidos na base principal.")
 
@@ -687,9 +707,13 @@ else:
 # GASTOS VARIÁVEIS
 # =========================
 st.markdown("---")
-st.markdown('<div class="section-card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">🧾 Gastos variáveis</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-sub">O que escapa dos gastos fixos aparece aqui.</div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="section-head">
+    <div class="section-title">🧾 Gastos variáveis</div>
+    <div class="section-sub">O que escapa dos gastos fixos aparece aqui.</div>
+</div>
+""", unsafe_allow_html=True)
 
 aba_gastos = encontrar_aba_gastos(nomes_abas)
 
@@ -861,5 +885,3 @@ else:
             use_container_width=True,
             hide_index=True,
         )
-
-st.markdown('</div>', unsafe_allow_html=True)
