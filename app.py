@@ -1266,7 +1266,7 @@ with tab_morar:
                     text=top_sub["VALOR_FMT"],
                     textposition="inside",
                     insidetextanchor="middle",
-                    textfont=dict(size=12, color="#f8fafc"),
+                    textfont=dict(size=12, color="#081018"),
                     marker=dict(color=cores_sub, line=dict(width=0)),
                     hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                 ))
