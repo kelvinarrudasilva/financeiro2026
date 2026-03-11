@@ -1156,14 +1156,19 @@ with tab_morar:
                     df_cat_plot["ORDEM"] = df_cat_plot["CATEGORIA"].map(ordem).fillna(99)
                     df_cat_plot = df_cat_plot.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
 
-                    fig_cat = px.bar(
-                        df_cat_plot,
-                        x="CATEGORIA",
-                        y="PCT_RENDA",
-                        text="PCT_RENDA_FMT",
-                        labels={"CATEGORIA": "Categoria", "PCT_RENDA": "% da renda"},
-                    )
-                    fig_cat.update_traces(textposition="outside")
+                    fig_cat = go.Figure(go.Bar(
+                        x=df_cat_plot["CATEGORIA"],
+                        y=df_cat_plot["VALOR"],
+                        text=df_cat_plot["VALOR_FMT"],
+                        textposition="inside",
+                        insidetextanchor="middle",
+                        textfont=dict(size=13, color="#081018"),
+                        marker=dict(
+                            color=["#72E0B5", "#FFD36A", "#6EA8FF", "#B497FF"][:len(df_cat_plot)],
+                            line=dict(width=0)
+                        ),
+                        hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+                    ))
                     fig_cat.update_layout(
                         template=tema,
                         plot_bgcolor="rgba(0,0,0,0)",
@@ -1171,7 +1176,9 @@ with tab_morar:
                         height=360,
                         margin=dict(l=10, r=10, t=10, b=10),
                         xaxis_title="",
-                        yaxis_title="% da renda",
+                        yaxis_title="Valor (R$)",
+                        uniformtext_minsize=10,
+                        uniformtext_mode="hide",
                         font=dict(color="#e5edf7", size=12),
                         showlegend=False,
                     )
@@ -1244,15 +1251,25 @@ with tab_morar:
                 st.markdown("---")
                 top_sub = df_sub.sort_values("PCT_RENDA", ascending=False).head(8)
                 st.markdown("#### 🎯 Itens que mais pesam na renda")
-                fig_sub = px.bar(
-                    top_sub,
-                    x="SUBCATEGORIA",
-                    y="PCT_RENDA",
-                    color="CATEGORIA",
-                    text="PCT_RENDA_FMT",
-                    labels={"SUBCATEGORIA": "Item", "PCT_RENDA": "% da renda"},
-                )
-                fig_sub.update_traces(textposition="outside")
+                mapa_cores_sub = {
+                    "MORADIA": "#72E0B5",
+                    "ALIMENTAÇÃO": "#FFD36A",
+                    "ALIMENTACAO": "#FFD36A",
+                    "TRANSPORTE": "#6EA8FF",
+                    "OUTROS": "#B497FF",
+                }
+                cores_sub = [mapa_cores_sub.get(cat, "#6EA8FF") for cat in top_sub["CATEGORIA"]]
+
+                fig_sub = go.Figure(go.Bar(
+                    x=top_sub["SUBCATEGORIA"],
+                    y=top_sub["VALOR"],
+                    text=top_sub["VALOR_FMT"],
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    textfont=dict(size=12, color="#f8fafc"),
+                    marker=dict(color=cores_sub, line=dict(width=0)),
+                    hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+                ))
                 fig_sub.update_layout(
                     template=tema,
                     plot_bgcolor="rgba(0,0,0,0)",
@@ -1260,8 +1277,11 @@ with tab_morar:
                     height=420,
                     margin=dict(l=10, r=10, t=10, b=10),
                     xaxis_title="",
-                    yaxis_title="% da renda",
+                    yaxis_title="Valor (R$)",
+                    uniformtext_minsize=9,
+                    uniformtext_mode="hide",
                     font=dict(color="#e5edf7", size=12),
+                    showlegend=False,
                 )
                 fig_sub.update_xaxes(showgrid=False)
                 fig_sub.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
