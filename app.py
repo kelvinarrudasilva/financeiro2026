@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from datetime import datetime
 import random
 import unicodedata
@@ -438,288 +439,6 @@ def preparar_gastos(df):
     return df.sort_values("DATA", ascending=False)
 
 
-
-
-def encontrar_aba_custo_vida(sheet_names):
-    nomes_normalizados = {normalizar_texto(nome): nome for nome in sheet_names}
-    candidatos = [
-        "CUSTO DE VIDA",
-        "CUSTO_DE_VIDA",
-        "CUSTO VIDA",
-        "PLANEJAMENTO DE CUSTO DE VIDA",
-        "PROJETO MORAR SOZINHO",
-    ]
-    for cand in candidatos:
-        if cand in nomes_normalizados:
-            return nomes_normalizados[cand]
-
-    for nome_norm, nome_real in nomes_normalizados.items():
-        if "CUSTO" in nome_norm and "VIDA" in nome_norm:
-            return nome_real
-    return None
-
-
-def preparar_custo_vida(df_raw):
-    vazio = {
-        "itens": pd.DataFrame(columns=["CATEGORIA", "DESCRICAO", "VALOR"]),
-        "resumo_labels": {},
-        "totais_categoria": pd.DataFrame(columns=["CATEGORIA", "VALOR"]),
-        "renda_total": 0.0,
-        "custos_totais": 0.0,
-        "sobra_mes": 0.0,
-    }
-
-    if df_raw is None or df_raw.empty:
-        return vazio
-
-    df = df_raw.copy().iloc[:, :3]
-    if df.shape[1] < 3:
-        while df.shape[1] < 3:
-            df[df.shape[1]] = None
-    df.columns = ["CATEGORIA_RAW", "DESCRICAO", "VALOR"]
-
-    # Resumo superior (RENDA TOTAL / CUSTOS TOTAIS / SOBRA NO MÊS)
-    resumo_labels = {}
-    scan_top = df.head(8).copy()
-    for _, row in scan_top.iterrows():
-        chave = normalizar_texto(row["CATEGORIA_RAW"])
-        valor = limpar_valor(row["VALOR"])
-        if chave:
-            resumo_labels[chave] = valor
-
-    # Miolo da tabela começa normalmente após o cabeçalho Categoria / Descrição / Valor
-    start_idx = 0
-    for i, row in df.iterrows():
-        left = normalizar_texto(row["CATEGORIA_RAW"])
-        middle = normalizar_texto(row["DESCRICAO"])
-        if left == "CATEGORIA" and middle == "DESCRICAO":
-            start_idx = i + 1
-            break
-
-    base = df.iloc[start_idx:].copy().reset_index(drop=True)
-    base["CAT_TXT"] = base["CATEGORIA_RAW"].fillna("").astype(str).str.strip()
-    base["DESC_TXT"] = base["DESCRICAO"].fillna("").astype(str).str.strip()
-    base["VALOR_NUM"] = base["VALOR"].apply(limpar_valor)
-    base = base[(base["CAT_TXT"] != "") | (base["DESC_TXT"] != "") | (base["VALOR_NUM"] != 0)].copy()
-
-    categorias_validas = {"RENDA", "MORADIA", "ALIMENTACAO", "TRANSPORTE", "OUTROS"}
-
-    def extrair_categoria(cat_txt, desc_txt):
-        cat_norm = normalizar_texto(cat_txt)
-        desc_norm = normalizar_texto(desc_txt)
-        if cat_norm in categorias_validas:
-            return cat_norm
-        if desc_norm.startswith("TOTAL "):
-            return desc_norm.replace("TOTAL ", "").strip()
-        return ""
-
-    base["CATEGORIA"] = [extrair_categoria(c, d) for c, d in zip(base["CAT_TXT"], base["DESC_TXT"])]
-    base["CATEGORIA"] = base["CATEGORIA"].replace("", pd.NA).ffill().fillna("")
-    base = base[base["CATEGORIA"] != ""].copy()
-
-    totais = base[base["DESC_TXT"].str.upper().str.startswith("TOTAL")].copy()
-    totais["CATEGORIA"] = totais["DESC_TXT"].apply(lambda x: normalizar_texto(str(x)).replace("TOTAL ", "").strip())
-    totais = (
-        totais.groupby("CATEGORIA", as_index=False)["VALOR_NUM"]
-        .sum()
-        .rename(columns={"VALOR_NUM": "VALOR"})
-    )
-
-    itens = base[~base["DESC_TXT"].str.upper().str.startswith("TOTAL")].copy()
-    itens = itens[["CATEGORIA", "DESC_TXT", "VALOR_NUM"]].rename(
-        columns={"DESC_TXT": "DESCRICAO", "VALOR_NUM": "VALOR"}
-    )
-    itens = itens[itens["DESCRICAO"] != ""].copy()
-
-    renda_total = resumo_labels.get("RENDA TOTAL")
-    custos_totais = resumo_labels.get("CUSTOS TOTAIS")
-    sobra_mes = resumo_labels.get("SOBRA NO MES")
-
-    if renda_total in (None, 0):
-        renda_total = float(totais.loc[totais["CATEGORIA"] == "RENDA", "VALOR"].sum())
-        if renda_total == 0:
-            renda_total = float(itens.loc[itens["CATEGORIA"] == "RENDA", "VALOR"].sum())
-
-    if custos_totais in (None, 0):
-        custos_totais = float(totais.loc[totais["CATEGORIA"] != "RENDA", "VALOR"].sum())
-        if custos_totais == 0:
-            custos_totais = float(itens.loc[itens["CATEGORIA"] != "RENDA", "VALOR"].sum())
-
-    if sobra_mes in (None, 0) and (renda_total or custos_totais):
-        sobra_mes = float(renda_total - custos_totais)
-
-    if totais.empty:
-        totais = (
-            itens.groupby("CATEGORIA", as_index=False)["VALOR"]
-            .sum()
-            .sort_values("VALOR", ascending=False)
-        )
-
-    return {
-        "itens": itens,
-        "resumo_labels": resumo_labels,
-        "totais_categoria": totais,
-        "renda_total": float(renda_total or 0),
-        "custos_totais": float(custos_totais or 0),
-        "sobra_mes": float(sobra_mes or 0),
-    }
-
-
-def render_projeto_morar_sozinho(planilhas, nomes_abas):
-    st.markdown("""
-    <div class="section-head">
-        <div class="section-title">🏠 Projeto Morar Sozinho</div>
-        <div class="section-sub">A própria planilha vira um mapa de independência: quanto custa, quanto sobra e quanto falta para o plano sair do papel.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    aba_custo = encontrar_aba_custo_vida(nomes_abas)
-    if not aba_custo:
-        st.info("Não encontrei uma aba como 'CUSTO DE VIDA' na planilha.")
-        return
-
-    custo_raw = planilhas.get(aba_custo, pd.DataFrame())
-    projeto = preparar_custo_vida(custo_raw)
-    itens = projeto["itens"]
-    totais = projeto["totais_categoria"]
-
-    if itens.empty and totais.empty:
-        st.warning(f"Encontrei a aba '{aba_custo}', mas não consegui interpretar a estrutura dela.")
-        return
-
-    renda_total = projeto["renda_total"]
-    custos_totais = projeto["custos_totais"]
-    sobra_mes = projeto["sobra_mes"]
-    reserva_6m = custos_totais * 6
-    taxa_comprometimento = (custos_totais / renda_total * 100) if renda_total > 0 else 0
-    meses_reserva = (reserva_6m / sobra_mes) if sobra_mes > 0 else None
-
-    status_txt = "Pronto para acelerar"
-    status_cor = "#72E0B5"
-    if taxa_comprometimento >= 85 or sobra_mes <= 0:
-        status_txt = "Plano apertado"
-        status_cor = "#FF8C8C"
-    elif taxa_comprometimento >= 70:
-        status_txt = "Dá para ir, mas com margem curta"
-        status_cor = "#FFD36A"
-
-    a1, a2, a3, a4 = st.columns(4)
-    a1.metric("💰 Renda mensal", formato_real(renda_total))
-    a2.metric("🏷️ Custo de vida", formato_real(custos_totais))
-    a3.metric("🌱 Sobra mensal", formato_real(sobra_mes))
-    a4.metric("🛟 Reserva 6 meses", formato_real(reserva_6m))
-
-    st.markdown(
-        f"""
-        <div class="soft-note">
-            <b>Leitura rápida:</b> seus custos consomem <b>{taxa_comprometimento:.1f}%</b> da renda. 
-            O plano hoje está em modo <b style="color:{status_cor}">{status_txt}</b>.
-            {f"Mantendo essa sobra, a reserva de 6 meses pode ser montada em cerca de <b>{meses_reserva:.1f} meses</b>." if meses_reserva else "Com a sobra atual, primeiro vale criar mais folga mensal antes de contar com uma reserva."}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    categoria_map = {
-        "MORADIA": "🏠 Moradia",
-        "ALIMENTACAO": "🍽️ Alimentação",
-        "TRANSPORTE": "🚗 Transporte",
-        "OUTROS": "🧩 Outros",
-        "RENDA": "💼 Renda",
-    }
-
-    totais_view = totais.copy()
-    totais_view["CATEGORIA_LABEL"] = totais_view["CATEGORIA"].map(categoria_map).fillna(totais_view["CATEGORIA"])
-
-    despesas_cat = totais_view[totais_view["CATEGORIA"] != "RENDA"].copy()
-    despesas_cat = despesas_cat.sort_values("VALOR", ascending=True)
-
-    g1, g2 = st.columns([1.15, 1])
-
-    with g1:
-        st.markdown("#### 📊 Onde o dinheiro vai")
-        if despesas_cat.empty:
-            st.info("Não encontrei categorias de custo para montar o gráfico.")
-        else:
-            fig_morar = go.Figure(go.Bar(
-                x=despesas_cat["VALOR"],
-                y=despesas_cat["CATEGORIA_LABEL"],
-                orientation="h",
-                text=despesas_cat["VALOR"].apply(formato_real),
-                textposition="inside",
-                insidetextanchor="middle",
-                marker=dict(
-                    color=["#6EA8FF", "#72E0B5", "#FFD36A", "#B497FF"][:len(despesas_cat)],
-                    line=dict(width=0)
-                ),
-                hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>",
-            ))
-            fig_morar.update_layout(
-                template="plotly_dark" if st.get_option("theme.base") == "dark" else "plotly",
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                height=350,
-                margin=dict(l=8, r=8, t=10, b=10),
-                xaxis_title="",
-                yaxis_title="",
-                font=dict(color="#e5edf7", size=12),
-            )
-            fig_morar.update_xaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
-            fig_morar.update_yaxes(showgrid=False)
-            st.plotly_chart(fig_morar, use_container_width=True)
-
-    with g2:
-        st.markdown("#### 🧭 Diagnóstico do projeto")
-
-        maior_peso = despesas_cat.sort_values("VALOR", ascending=False).head(1)
-        categoria_top = maior_peso["CATEGORIA_LABEL"].iloc[0] if not maior_peso.empty else "—"
-        valor_top = maior_peso["VALOR"].iloc[0] if not maior_peso.empty else 0.0
-        margem_segura = max(renda_total * 0.30, 0)
-        folga_vs_meta = sobra_mes - margem_segura
-
-        d1, d2 = st.columns(2)
-        d1.metric("🎯 Maior peso", categoria_top)
-        d2.metric("💸 Valor mais pesado", formato_real(valor_top))
-
-        d3, d4 = st.columns(2)
-        d3.metric("📉 Comprometimento", f"{taxa_comprometimento:.1f}%")
-        d4.metric("🪟 Folga vs meta 30%", formato_real(folga_vs_meta))
-
-        st.markdown(
-            """
-            <div class="soft-note">
-                <b>Como ler:</b><br>
-                • até <b>70%</b> da renda comprometida costuma dar mais oxigênio;<br>
-                • entre <b>70% e 85%</b>, o plano ainda anda, mas pede cuidado;<br>
-                • acima disso, qualquer imprevisto já entra chutando a porta.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("#### 🧾 Estrutura do seu custo de vida")
-    tabela = itens.copy()
-    tabela["Categoria"] = tabela["CATEGORIA"].map(categoria_map).fillna(tabela["CATEGORIA"])
-    tabela["Valor"] = tabela["VALOR"].map(formato_real)
-    tabela = tabela.rename(columns={"DESCRICAO": "Descrição"})
-    tabela = tabela[["Categoria", "Descrição", "Valor"]]
-
-    st.dataframe(tabela, use_container_width=True, hide_index=True)
-
-    st.markdown("#### 🚀 Cenário de saída")
-    meta_entrada = st.slider("Reserva inicial desejada", 1000, 20000, 5000, 500, key="morar_meta")
-    meses_meta = (meta_entrada / sobra_mes) if sobra_mes > 0 else None
-    aluguel_ideal = renda_total * 0.30
-    st.markdown(
-        f"""
-        <div class="soft-note">
-            Com a sua renda atual, um aluguel em torno de <b>{formato_real(aluguel_ideal)}</b> tende a ficar em uma faixa mais saudável.
-            {f" Se você mirar uma reserva inicial de <b>{formato_real(meta_entrada)}</b>, ela pode nascer em cerca de <b>{meses_meta:.1f} meses</b> mantendo a sobra atual." if meses_meta else f" Para juntar <b>{formato_real(meta_entrada)}</b>, primeiro é importante destravar uma sobra mensal positiva."}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 # =========================
 # HERO
 # =========================
@@ -785,38 +504,234 @@ resumo = resumo.sort_values(["ANO", "MES_NUM"])
 resumo["DATA_CHAVE"] = pd.to_datetime(resumo["ANO"].astype(str) + "-" + resumo["MES_NUM"].astype(str) + "-01")
 resumo["MES_ANO"] = resumo["DATA_CHAVE"].apply(mes_ano_pt)
 
+# =========================
+# ANO ATUAL
+# =========================
+ano_atual = datetime.now().year
+mes_atual = datetime.now().month
+
+resumo_ano = resumo[resumo["ANO"] == ano_atual]
+
+total_receita_ano = resumo_ano["RECEITA"].sum()
+total_despesa_ano = resumo_ano["DESPESA"].sum()
+saldo_ano = resumo_ano["SALDO"].sum()
+
+saldo_restante = resumo_ano[resumo_ano["MES_NUM"] > mes_atual]["SALDO"].sum()
+
+# =========================
+# INVESTIMENTO
+# =========================
+valor_investido = 0.0
+for nome_aba in nomes_abas:
+    if normalizar_texto(nome_aba) == "INVESTIMENTO":
+        try:
+            investimento_df = pd.read_excel(PLANILHA_URL, sheet_name=nome_aba, header=None)
+            valor_investido = limpar_valor(investimento_df.iloc[13, 1])
+        except Exception:
+            valor_investido = 0.0
+        break
+
+patrimonio_em_construcao = saldo_restante + valor_investido
+
+
+
+def format_pct(v):
+    try:
+        return f"{float(v):.1f}%".replace(".", ",")
+    except Exception:
+        return "0,0%"
+
+
+def faixa_percentual(p):
+    try:
+        p = float(p)
+    except Exception:
+        return "—"
+    if p <= 5:
+        return "Leve"
+    elif p <= 15:
+        return "Controlado"
+    elif p <= 30:
+        return "Pesa"
+    return "Muito pesado"
+
+
+def analise_subcategoria(pct_renda, categoria=""):
+    try:
+        p = float(pct_renda)
+    except Exception:
+        p = 0.0
+
+    if p <= 2:
+        return "Impacto bem pequeno na renda. Dá para manter sem drama."
+    elif p <= 5:
+        return "Impacto leve. Bom ponto para pequenos ajustes finos."
+    elif p <= 10:
+        return "Já aparece no orçamento. Vale acompanhar para não crescer no escuro."
+    elif p <= 20:
+        return "Peso relevante. Se apertar, aqui já existe espaço para revisar."
+    elif p <= 30:
+        return "Peso alto na renda. Merece atenção real e comparação de alternativas."
+    else:
+        if normalizar_texto(categoria) == "MORADIA":
+            return "Muito pesado para a renda. Moradia virou o centro do tabuleiro."
+        return "Muito pesado para a renda. Este item domina o orçamento e pede revisão."
+
+
+def parse_money_excel(x):
+    if pd.isna(x):
+        return 0.0
+    if isinstance(x, (int, float)):
+        return float(x)
+    s = str(x).strip()
+    if not s:
+        return 0.0
+    s = s.replace("R$", "").replace("r$", "").replace(" ", "")
+    if "." in s and "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def encontrar_aba_custo_vida(sheet_names):
+    nomes_normalizados = {normalizar_texto(nome): nome for nome in sheet_names}
+    candidatos = [
+        "CUSTO DE VIDA",
+        "CUSTO_DE_VIDA",
+        "CUSTO VIDA",
+        "PLANEJAMENTO DE CUSTO DE VIDA",
+    ]
+    for cand in candidatos:
+        if cand in nomes_normalizados:
+            return nomes_normalizados[cand]
+    return None
+
+
+@st.cache_data(show_spinner=False, ttl=60)
+def carregar_custo_vida_raw(url, nome_aba, refresh_key):
+    return pd.read_excel(url, sheet_name=nome_aba, header=None)
+
+
+def extrair_projeto_morar_sozinho(df_raw):
+    renda_total = 0.0
+    custos_totais = 0.0
+    sobra_mes = 0.0
+    categoria_atual = None
+    itens = []
+
+    categorias_validas = {"RENDA", "MORADIA", "ALIMENTACAO", "ALIMENTAÇÃO", "TRANSPORTE", "OUTROS"}
+
+    for _, row in df_raw.iterrows():
+        a = str(row.iloc[0]).strip() if len(row) > 0 and pd.notna(row.iloc[0]) else ""
+        b = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+        c = row.iloc[2] if len(row) > 2 else None
+
+        a_up = normalizar_texto(a)
+        b_up = normalizar_texto(b)
+        valor = parse_money_excel(c)
+
+        if "RENDA TOTAL" in a_up:
+            renda_total = valor
+            continue
+        if "CUSTOS TOTAIS" in a_up:
+            custos_totais = valor
+            continue
+        if "SOBRA NO MES" in a_up:
+            sobra_mes = valor
+            continue
+
+        if a_up == "CATEGORIA" and b_up in {"DESCRICAO", "DESCRICAO"}:
+            continue
+
+        if a_up in categorias_validas:
+            categoria_atual = "ALIMENTAÇÃO" if "ALIMENT" in a_up else a_up
+            if b and not b_up.startswith("TOTAL"):
+                itens.append({
+                    "CATEGORIA": categoria_atual,
+                    "SUBCATEGORIA": b,
+                    "VALOR": valor,
+                })
+            continue
+
+        if categoria_atual and b and not b_up.startswith("TOTAL"):
+            itens.append({
+                "CATEGORIA": categoria_atual,
+                "SUBCATEGORIA": b,
+                "VALOR": valor,
+            })
+
+    df_itens = pd.DataFrame(itens)
+    if df_itens.empty:
+        return {
+            "renda_total": renda_total,
+            "custos_totais": custos_totais,
+            "sobra_mes": sobra_mes,
+            "df_itens": pd.DataFrame(columns=["CATEGORIA", "SUBCATEGORIA", "VALOR"]),
+            "df_cat": pd.DataFrame(columns=["CATEGORIA", "VALOR"]),
+        }
+
+    df_itens["SUBCATEGORIA"] = df_itens["SUBCATEGORIA"].fillna("").astype(str).str.strip()
+    df_itens["VALOR"] = df_itens["VALOR"].fillna(0.0).astype(float)
+    df_itens = df_itens[df_itens["SUBCATEGORIA"] != ""].copy()
+
+    if renda_total <= 0:
+        renda_total = df_itens.loc[df_itens["CATEGORIA"] == "RENDA", "VALOR"].sum()
+    if custos_totais <= 0:
+        custos_totais = df_itens.loc[df_itens["CATEGORIA"] != "RENDA", "VALOR"].sum()
+    if renda_total > 0 and sobra_mes == 0:
+        sobra_mes = renda_total - custos_totais
+
+    df_cat = df_itens.groupby("CATEGORIA", as_index=False)["VALOR"].sum()
+
+    mapa_cat = df_cat.set_index("CATEGORIA")["VALOR"].to_dict()
+    df_itens["TOTAL_CATEGORIA"] = df_itens["CATEGORIA"].map(mapa_cat).fillna(0.0)
+
+    if renda_total > 0:
+        df_itens["PCT_RENDA"] = (df_itens["VALOR"] / renda_total) * 100
+        df_cat["PCT_RENDA"] = (df_cat["VALOR"] / renda_total) * 100
+        pct_sobra = (sobra_mes / renda_total) * 100
+    else:
+        df_itens["PCT_RENDA"] = 0.0
+        df_cat["PCT_RENDA"] = 0.0
+        pct_sobra = 0.0
+
+    df_itens["PCT_CATEGORIA"] = (
+        df_itens["VALOR"] / df_itens["TOTAL_CATEGORIA"].replace(0, pd.NA) * 100
+    ).fillna(0.0)
+
+    df_itens["VALOR_FMT"] = df_itens["VALOR"].apply(formato_real)
+    df_itens["PCT_RENDA_FMT"] = df_itens["PCT_RENDA"].apply(format_pct)
+    df_itens["PCT_CATEGORIA_FMT"] = df_itens["PCT_CATEGORIA"].apply(format_pct)
+    df_itens["FAIXA"] = df_itens["PCT_RENDA"].apply(faixa_percentual)
+    df_itens["ANALISE"] = df_itens.apply(
+        lambda r: analise_subcategoria(r["PCT_RENDA"], r["CATEGORIA"]),
+        axis=1
+    )
+
+    df_cat["VALOR_FMT"] = df_cat["VALOR"].apply(formato_real)
+    df_cat["PCT_RENDA_FMT"] = df_cat["PCT_RENDA"].apply(format_pct)
+    df_cat["FAIXA"] = df_cat["PCT_RENDA"].apply(faixa_percentual)
+
+    return {
+        "renda_total": renda_total,
+        "custos_totais": custos_totais,
+        "sobra_mes": sobra_mes,
+        "pct_sobra": pct_sobra,
+        "df_itens": df_itens,
+        "df_cat": df_cat,
+    }
+
+# =========================
+# TABS
+# =========================
+
 tab_atlas, tab_morar = st.tabs(["🌙 Atlas Financeiro", "🏠 Projeto Morar Sozinho"])
 
 with tab_atlas:
-    # =========================
-    # ANO ATUAL
-    # =========================
-    ano_atual = datetime.now().year
-    mes_atual = datetime.now().month
-
-    resumo_ano = resumo[resumo["ANO"] == ano_atual]
-
-    total_receita_ano = resumo_ano["RECEITA"].sum()
-    total_despesa_ano = resumo_ano["DESPESA"].sum()
-    saldo_ano = resumo_ano["SALDO"].sum()
-
-    saldo_restante = resumo_ano[resumo_ano["MES_NUM"] > mes_atual]["SALDO"].sum()
-
-    # =========================
-    # INVESTIMENTO
-    # =========================
-    valor_investido = 0.0
-    for nome_aba in nomes_abas:
-        if normalizar_texto(nome_aba) == "INVESTIMENTO":
-            try:
-                investimento_df = pd.read_excel(PLANILHA_URL, sheet_name=nome_aba, header=None)
-                valor_investido = limpar_valor(investimento_df.iloc[13, 1])
-            except Exception:
-                valor_investido = 0.0
-            break
-
-    patrimonio_em_construcao = saldo_restante + valor_investido
-
     # =========================
     # MÉTRICAS
     # =========================
@@ -1173,4 +1088,204 @@ with tab_atlas:
 
 
 with tab_morar:
-    render_projeto_morar_sozinho(planilhas, nomes_abas)
+    st.markdown("""
+    <div class="section-head">
+        <div class="section-title">🏠 Projeto Morar Sozinho</div>
+        <div class="section-sub">Sua aba CUSTO DE VIDA virando mapa de decisão: o que pesa, o que cabe, e onde dá para mexer.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    aba_custo_vida = encontrar_aba_custo_vida(nomes_abas)
+    if not aba_custo_vida:
+        st.info("Não encontrei a aba 'CUSTO DE VIDA' na planilha.")
+    else:
+        try:
+            raw_cv = carregar_custo_vida_raw(PLANILHA_URL, aba_custo_vida, st.session_state.refresh_key)
+            projeto = extrair_projeto_morar_sozinho(raw_cv)
+
+            renda_total = projeto["renda_total"]
+            custos_totais = projeto["custos_totais"]
+            sobra_mes = projeto["sobra_mes"]
+            pct_sobra = projeto["pct_sobra"]
+            df_itens = projeto["df_itens"]
+            df_cat = projeto["df_cat"]
+
+            if renda_total <= 0 or df_itens.empty:
+                st.warning("Achei a aba, mas não consegui montar o planejamento. Dá uma olhada se a estrutura segue o print que você mostrou.")
+            else:
+                reserva_6m = custos_totais * 6
+                pct_custos = (custos_totais / renda_total * 100) if renda_total > 0 else 0
+
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("💰 Renda total", formato_real(renda_total))
+                m2.metric("💸 Custos totais", f"{formato_real(custos_totais)} • {format_pct(pct_custos)}")
+                m3.metric("🫰 Sobra no mês", f"{formato_real(sobra_mes)} • {format_pct(pct_sobra)}")
+                m4.metric("🛟 Reserva ideal (6 meses)", formato_real(reserva_6m))
+
+                mapa_cat = df_cat.set_index("CATEGORIA")["VALOR"].to_dict()
+                mapa_pct = df_cat.set_index("CATEGORIA")["PCT_RENDA"].to_dict()
+
+                moradia_val = mapa_cat.get("MORADIA", 0.0)
+                alimentacao_val = mapa_cat.get("ALIMENTAÇÃO", mapa_cat.get("ALIMENTACAO", 0.0))
+                transporte_val = mapa_cat.get("TRANSPORTE", 0.0)
+                outros_val = mapa_cat.get("OUTROS", 0.0)
+
+                moradia_pct = mapa_pct.get("MORADIA", 0.0)
+                alimentacao_pct = mapa_pct.get("ALIMENTAÇÃO", mapa_pct.get("ALIMENTACAO", 0.0))
+                transporte_pct = mapa_pct.get("TRANSPORTE", 0.0)
+                outros_pct = mapa_pct.get("OUTROS", 0.0)
+
+                st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
+                st.markdown("#### 📌 Leitura rápida do cenário")
+                st.markdown(
+                    f"""
+- **Moradia:** **{formato_real(moradia_val)}** → **{format_pct(moradia_pct)}**
+- **Alimentação:** **{formato_real(alimentacao_val)}** → **{format_pct(alimentacao_pct)}**
+- **Transporte:** **{formato_real(transporte_val)}** → **{format_pct(transporte_pct)}**
+- **Outros:** **{formato_real(outros_val)}** → **{format_pct(outros_pct)}**
+- **Sobra no mês:** **{formato_real(sobra_mes)}** → **{format_pct(pct_sobra)}**
+"""
+                )
+
+                c1, c2 = st.columns([1.1, 1])
+
+                with c1:
+                    st.markdown("#### 📊 Peso das categorias na renda")
+                    df_cat_plot = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
+                    ordem = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
+                    df_cat_plot["ORDEM"] = df_cat_plot["CATEGORIA"].map(ordem).fillna(99)
+                    df_cat_plot = df_cat_plot.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
+
+                    fig_cat = px.bar(
+                        df_cat_plot,
+                        x="CATEGORIA",
+                        y="PCT_RENDA",
+                        text="PCT_RENDA_FMT",
+                        labels={"CATEGORIA": "Categoria", "PCT_RENDA": "% da renda"},
+                    )
+                    fig_cat.update_traces(textposition="outside")
+                    fig_cat.update_layout(
+                        template=tema,
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        height=360,
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        xaxis_title="",
+                        yaxis_title="% da renda",
+                        font=dict(color="#e5edf7", size=12),
+                        showlegend=False,
+                    )
+                    fig_cat.update_xaxes(showgrid=False)
+                    fig_cat.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
+                    st.plotly_chart(fig_cat, use_container_width=True)
+
+                with c2:
+                    st.markdown("#### 🧠 Diagnóstico")
+                    if pct_sobra >= 30:
+                        st.success("Sua sobra está forte. O cenário respira e aceita melhor imprevistos.")
+                    elif pct_sobra >= 20:
+                        st.info("Seu plano está bom. Já existe folga, mas ainda dá para lapidar.")
+                    elif pct_sobra >= 10:
+                        st.warning("Dá para ir, mas o orçamento já sente qualquer tropeço.")
+                    else:
+                        st.error("Sua sobra está curta. Antes de acelerar, vale reduzir custos ou ganhar mais.")
+
+                    top_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].sort_values("PCT_RENDA", ascending=False).head(3)
+                    st.markdown("**Onde o dinheiro pesa mais:**")
+                    for _, row in top_cat.iterrows():
+                        st.write(f"• **{row['CATEGORIA'].title()}** consome **{row['PCT_RENDA_FMT']}** da sua renda.")
+                    st.markdown("**Leitura de bolso:**")
+                    st.write("• Moradia costuma ser o rei do tabuleiro.")
+                    st.write("• Se a sobra estiver baixa, cortar miudeza ajuda menos do que parece.")
+                    st.write("• Subcategoria que passa de 10% da renda já merece vigilância.")
+
+                st.markdown("---")
+                st.markdown("#### 🗂️ Resumo por categoria")
+                tabela_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
+                st.dataframe(
+                    tabela_cat[["CATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT", "FAIXA"]].rename(
+                        columns={
+                            "CATEGORIA": "Categoria",
+                            "VALOR_FMT": "Total",
+                            "PCT_RENDA_FMT": "% da renda",
+                            "FAIXA": "Peso",
+                        }
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                st.markdown("---")
+                st.markdown("#### 🔎 Subcategorias com análise")
+                df_sub = df_itens[df_itens["CATEGORIA"] != "RENDA"].copy()
+                ordem_sub = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
+                df_sub["ORDEM"] = df_sub["CATEGORIA"].map(ordem_sub).fillna(99)
+                df_sub = df_sub.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
+
+                st.dataframe(
+                    df_sub[[
+                        "CATEGORIA", "SUBCATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT",
+                        "PCT_CATEGORIA_FMT", "FAIXA", "ANALISE"
+                    ]].rename(
+                        columns={
+                            "CATEGORIA": "Categoria",
+                            "SUBCATEGORIA": "Subcategoria",
+                            "VALOR_FMT": "Valor",
+                            "PCT_RENDA_FMT": "% da renda",
+                            "PCT_CATEGORIA_FMT": "% da categoria",
+                            "FAIXA": "Peso",
+                            "ANALISE": "Análise",
+                        }
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                st.markdown("---")
+                top_sub = df_sub.sort_values("PCT_RENDA", ascending=False).head(8)
+                st.markdown("#### 🎯 Itens que mais pesam na renda")
+                fig_sub = px.bar(
+                    top_sub,
+                    x="SUBCATEGORIA",
+                    y="PCT_RENDA",
+                    color="CATEGORIA",
+                    text="PCT_RENDA_FMT",
+                    labels={"SUBCATEGORIA": "Item", "PCT_RENDA": "% da renda"},
+                )
+                fig_sub.update_traces(textposition="outside")
+                fig_sub.update_layout(
+                    template=tema,
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    height=420,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    xaxis_title="",
+                    yaxis_title="% da renda",
+                    font=dict(color="#e5edf7", size=12),
+                )
+                fig_sub.update_xaxes(showgrid=False)
+                fig_sub.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
+                st.plotly_chart(fig_sub, use_container_width=True)
+
+                st.markdown("#### 🛠️ Simulação rápida")
+                ajuste = st.slider(
+                    "Se você reduzisse seus custos mensais, quanto conseguiria cortar?",
+                    min_value=0,
+                    max_value=1000,
+                    value=200,
+                    step=10,
+                )
+                nova_sobra = sobra_mes + ajuste
+                novo_pct_sobra = (nova_sobra / renda_total * 100) if renda_total > 0 else 0
+
+                s1, s2 = st.columns(2)
+                s1.metric("Nova sobra estimada", formato_real(nova_sobra))
+                s2.metric("Nova sobra em % da renda", format_pct(novo_pct_sobra))
+
+                st.markdown(
+                    f'<div class="soft-note">Com um ajuste de <b>{formato_real(ajuste)}</b> por mês, sua sobra iria para <b>{formato_real(nova_sobra)}</b>, o que representa <b>{format_pct(novo_pct_sobra)}</b> da renda.</div>',
+                    unsafe_allow_html=True,
+                )
+
+        except Exception as e:
+            st.error(f"Erro ao montar o Projeto Morar Sozinho: {e}")
