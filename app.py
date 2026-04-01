@@ -38,6 +38,16 @@ PLANILHA_URL = (
 )
 
 # =========================
+# TEMA VISUAL GLOBAL
+# =========================
+PLOT_THEME = "plotly_dark"
+COR_RECEITA = "#6EA8FF"
+COR_DESPESA = "#FF8C8C"
+COR_SALDO = "#72E0B5"
+COR_DESTAQUE = "#B497FF"
+
+
+# =========================
 # CONTROLE DE ATUALIZAÇÃO
 # =========================
 if "refresh_key" not in st.session_state:
@@ -119,7 +129,7 @@ label,
   gap:18px; padding:16px 20px; margin: 0 0 16px 0 !important; border-radius:24px;
   background: linear-gradient(90deg, rgba(8,13,20,.94) 0%, rgba(8,17,30,.92) 52%, rgba(8,13,20,.94) 100%);
   border:1px solid rgba(96,165,250,.14); box-shadow:0 10px 30px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.03);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden; animation: topbarSlide .42s ease-out both;
 }
 .topbar::before{ content:""; position:absolute; inset:0; background: linear-gradient(120deg, rgba(34,211,238,.05), transparent 22%, transparent 78%, rgba(96,165,250,.05)), radial-gradient(circle at top left, rgba(45,212,191,.10), transparent 24%); pointer-events:none; }
 .topbar > *{ position:relative; z-index:1; }
@@ -150,7 +160,8 @@ div[role="radiogroup"] > label p { color:#cbd5e1 !important; font-weight:600; fo
 div[role="radiogroup"] > label:has(input:checked) { background:linear-gradient(135deg, rgba(45,212,191,.16), rgba(96,165,250,.13)); border-color:rgba(45,212,191,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
 div[role="radiogroup"] > label:has(input:checked) p { color:white !important; }
 .stPlotlyChart, .stDataFrame, div[data-testid="stMetric"]{ border:1px solid rgba(148,163,184,.12) !important; border-radius:20px !important; box-shadow:0 12px 28px rgba(0,0,0,.18) !important; }
-.stPlotlyChart{ background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88)) !important; padding:10px 10px 2px 10px !important; }
+.stPlotlyChart{ background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88)) !important; padding:10px 10px 2px 10px !important; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease !important; }
+.stPlotlyChart:hover{ transform:translateY(-2px); border-color:rgba(96,165,250,.18) !important; box-shadow:0 16px 34px rgba(0,0,0,.22) !important; }
 .stDataFrame{ overflow:hidden !important; }
 .stDataFrame thead tr th { background:#0f172a !important; color:#e5e7eb !important; font-size:11px !important; text-transform:uppercase; }
 div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, [data-testid="stTextInputRootElement"] > div, [data-testid="stNumberInputRootElement"] > div, [data-testid="stSelectbox"] > div, [data-testid="stMultiSelect"] > div, div[data-baseweb="base-input"]{ background: #0c1117 !important; color: var(--text) !important; border-color: rgba(148,163,184,.18) !important; border-radius:16px !important; min-height:50px !important; }
@@ -166,6 +177,7 @@ div[data-testid="stMetricDelta"]{ display:none !important; }
 .soft-note{ font-size:.92rem; color:var(--muted); padding:11px 13px; border-radius:16px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); margin:6px 0 10px 0; }
 .small-gap{ height:6px; }
 hr { border:none !important; height:1px !important; background:linear-gradient(90deg, transparent, rgba(148,163,184,.18), transparent) !important; margin:.95rem 0 !important; }
+@keyframes topbarSlide{ from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
 @media (max-width: 900px){ .block-container{padding-left:.7rem !important;padding-right:.7rem !important;} .topbar{flex-direction:column;align-items:flex-start;} .top-right-badge{justify-content:flex-start;} .top-title{font-size:20px;} .kpi-value{font-size:21px;} }
 @media (max-width: 768px){ .topbar{ top:8px; flex-direction:column; align-items:flex-start; gap:10px; padding:14px 14px; border-radius:18px; } .top-right-badge{ width:100%; justify-content:flex-start; gap:6px; } .top-chip{ padding:7px 12px; font-size:11px; } .logo-pill{ width:46px; height:46px; border-radius:14px; font-size:20px; } .top-title{ font-size:18px; line-height:1.12; } .top-subtitle{ font-size:11px; line-height:1.3; } .kpi-card{ padding:13px 14px; border-radius:16px; } .kpi-value{ font-size:18px; } }
 </style>
@@ -702,12 +714,6 @@ if nav == "🌙 Atlas Financeiro":
     </div>
     """, unsafe_allow_html=True)
 
-    tema = "plotly_dark" if st.get_option("theme.base") == "dark" else "plotly"
-    cor_receita = "#6EA8FF"
-    cor_despesa = "#FF8C8C"
-    cor_saldo = "#72E0B5"
-    cor_destaque = "#B497FF"
-
     fig = go.Figure()
     fig.add_bar(
         x=resumo["MES_ANO"],
@@ -716,7 +722,7 @@ if nav == "🌙 Atlas Financeiro":
         text=resumo["RECEITA"].apply(formato_real),
         textposition="inside",
         textfont=dict(size=11, color="#f8fafc"),
-        marker=dict(color=cor_receita, line=dict(width=0)),
+        marker=dict(color=COR_RECEITA, line=dict(width=0)),
         insidetextanchor="middle",
     )
     fig.add_bar(
@@ -726,7 +732,7 @@ if nav == "🌙 Atlas Financeiro":
         text=resumo["DESPESA"].apply(formato_real),
         textposition="inside",
         textfont=dict(size=11, color="#f8fafc"),
-        marker=dict(color=cor_despesa, line=dict(width=0)),
+        marker=dict(color=COR_DESPESA, line=dict(width=0)),
         insidetextanchor="middle",
     )
     fig.add_bar(
@@ -736,11 +742,11 @@ if nav == "🌙 Atlas Financeiro":
         text=resumo["SALDO"].apply(formato_real),
         textposition="inside",
         textfont=dict(size=11, color="#081018"),
-        marker=dict(color=cor_saldo, line=dict(width=0)),
+        marker=dict(color=COR_SALDO, line=dict(width=0)),
         insidetextanchor="middle",
     )
     fig.update_layout(
-        template=tema,
+        template=PLOT_THEME,
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         barmode="group",
@@ -821,11 +827,11 @@ if nav == "🌙 Atlas Financeiro":
                 textposition="inside",
                 textfont=dict(size=11, color="#081018"),
                 insidetextanchor="middle",
-                marker=dict(color=cor_destaque, line=dict(width=0)),
+                marker=dict(color=COR_DESTAQUE, line=dict(width=0)),
                 hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
             ))
             fig2.update_layout(
-                template=tema,
+                template=PLOT_THEME,
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
                 height=320,
@@ -949,7 +955,7 @@ if nav == "🌙 Atlas Financeiro":
                         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                     ))
                     fig3.update_layout(
-                        template=tema,
+                        template=PLOT_THEME,
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
                         height=340,
@@ -983,11 +989,11 @@ if nav == "🌙 Atlas Financeiro":
                         textposition="inside",
                         insidetextanchor="middle",
                         textfont=dict(size=12, color="#f8fafc"),
-                        marker=dict(color=cor_receita, line=dict(width=0)),
+                        marker=dict(color=COR_RECEITA, line=dict(width=0)),
                         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                     ))
                     fig4.update_layout(
-                        template=tema,
+                        template=PLOT_THEME,
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
                         height=340,
@@ -1113,7 +1119,7 @@ elif nav == "🏠 Projeto Morar Sozinho":
                             hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                         ))
                         fig_cat.update_layout(
-                            template=tema,
+                            template=PLOT_THEME,
                             plot_bgcolor="rgba(0,0,0,0)",
                             paper_bgcolor="rgba(0,0,0,0)",
                             height=360,
@@ -1214,7 +1220,7 @@ elif nav == "🏠 Projeto Morar Sozinho":
                         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                     ))
                     fig_sub.update_layout(
-                        template=tema,
+                        template=PLOT_THEME,
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
                         height=420,
