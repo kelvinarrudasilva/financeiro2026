@@ -49,225 +49,125 @@ if "refresh_key" not in st.session_state:
 st.markdown("""
 <style>
 :root{
-    --bg:#06080d;
-    --bg-2:#0b1018;
-    --bg-3:#121826;
-    --card:rgba(15,20,31,.78);
-    --card-2:rgba(18,24,36,.88);
-    --stroke:rgba(255,255,255,.08);
-    --stroke-2:rgba(255,255,255,.13);
-    --text:#edf2f7;
-    --muted:#9aa8bc;
-    --blue:#6ea8ff;
-    --green:#72e0b5;
-    --red:#ff8c8c;
-    --purple:#b497ff;
-    --yellow:#ffd36a;
-    --shadow:0 14px 35px rgba(0,0,0,.28);
-    --radius:22px;
+  --bg:#06070a;
+  --bg-page:#06070a;
+  --bg-elev:#0b0f14;
+  --bg-card:#0f141b;
+  --bg-card-soft:#111821;
+  --bg-card-2:#151d27;
+  --border-soft:#1f2937;
+  --border-strong:#2d3a4b;
+  --accent:#22c55e;
+  --accent-soft:#2dd4bf;
+  --accent-blue:#60a5fa;
+  --accent-warm:#f59e0b;
+  --text:#eef2f7;
+  --muted:#94a3b8;
+  --danger:#f87171;
+  --purple:#a78bfa;
+  --yellow:#fbbf24;
+  --shadow:0 18px 45px rgba(0,0,0,.30);
 }
-
-.stApp{
-    background:
-        radial-gradient(circle at 12% 0%, rgba(110,168,255,.12), transparent 25%),
-        radial-gradient(circle at 100% 0%, rgba(180,151,255,.10), transparent 22%),
-        linear-gradient(180deg, #05070c 0%, #0a0f17 100%);
-    color:var(--text);
+html, body, [class*="css"] {
+  background:
+    radial-gradient(circle at top left, rgba(45,212,191,.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(96,165,250,.08), transparent 24%),
+    linear-gradient(180deg, #050608 0%, #080b10 100%) !important;
+  color: var(--text) !important;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-
+html, body, .stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stHeader"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"],
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"],
+.main, main {
+  background-color: #06070a !important;
+  color: var(--text) !important;
+}
+[data-testid="stAppViewContainer"]{
+  background:
+    radial-gradient(circle at top left, rgba(45,212,191,.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(96,165,250,.08), transparent 24%),
+    linear-gradient(180deg, #050608 0%, #080b10 100%) !important;
+  padding-top: .7rem !important;
+}
+.stApp { background: transparent !important; }
+[data-testid="stHeader"]{ background: transparent !important; height:0 !important; min-height:0 !important; visibility:hidden !important; }
+[data-testid="stToolbar"]{ background: transparent !important; right:10px !important; top:10px !important; }
+[data-testid="stDecoration"]{ display:none !important; }
+label, p, span, div, h1, h2, h3, h4, h5, h6, small { color: inherit; }
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span,
+.stCaption,
+label,
+.stSelectbox label,
+.stTextInput label,
+.stMultiSelect label { color: var(--text) !important; }
 .block-container{
-    max-width:1480px;
-    padding-top:1.1rem !important;
-    padding-bottom:1.4rem !important;
+  max-width: 1540px !important;
+  padding-top: .3rem !important;
+  padding-right: 1rem !important;
+  padding-left: 1rem !important;
+  padding-bottom: 1.8rem !important;
 }
-
-.hero{
-    position:relative;
-    overflow:hidden;
-    padding:24px 24px 18px 24px;
-    border:1px solid var(--stroke);
-    border-radius:28px;
-    background:linear-gradient(135deg, rgba(18,24,36,.92) 0%, rgba(10,14,22,.96) 100%);
-    box-shadow:var(--shadow);
-    margin-bottom:12px;
+.topbar{
+  position: sticky; top: 10px; z-index: 30; display:flex; align-items:center; justify-content:space-between;
+  gap:18px; padding:16px 20px; margin: 0 0 16px 0 !important; border-radius:24px;
+  background: linear-gradient(90deg, rgba(8,13,20,.94) 0%, rgba(8,17,30,.92) 52%, rgba(8,13,20,.94) 100%);
+  border:1px solid rgba(96,165,250,.14); box-shadow:0 10px 30px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.03);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden;
 }
-.hero:before{
-    content:"";
-    position:absolute;
-    inset:auto -80px -80px auto;
-    width:220px;
-    height:220px;
-    background:radial-gradient(circle, rgba(110,168,255,.18), transparent 65%);
-    pointer-events:none;
-}
-.hero:after{
-    content:"";
-    position:absolute;
-    inset:-70px auto auto -70px;
-    width:190px;
-    height:190px;
-    background:radial-gradient(circle, rgba(180,151,255,.14), transparent 65%);
-    pointer-events:none;
-}
-.hero-top{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:18px;
-    flex-wrap:wrap;
-}
-.hero-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:7px 12px;
-    border-radius:999px;
-    background:rgba(255,255,255,.05);
-    border:1px solid rgba(255,255,255,.08);
-    color:#d8e3f2;
-    font-size:.82rem;
-    margin-bottom:10px;
-}
-.hero-title{
-    font-size:2.15rem;
-    font-weight:800;
-    letter-spacing:-.04em;
-    line-height:1.1;
-    margin:0;
-}
-.hero-sub{
-    color:var(--muted);
-    font-size:1rem;
-    margin-top:6px;
-}
-.hero-quote{
-    color:#d7e1ef;
-    font-size:.92rem;
-    padding:12px 14px;
-    border-radius:18px;
-    background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,255,255,.06);
-    min-width:260px;
-    max-width:420px;
-}
-
-.section-head{
-    margin: 10px 0 8px 0;
-}
-.section-title{
-    font-size:1.08rem;
-    font-weight:800;
-    letter-spacing:-.02em;
-    color:#eef3fb;
-    margin-bottom:2px;
-}
-.section-sub{
-    color:#9aa8bc;
-    font-size:.93rem;
-    margin-bottom:8px;
-}
-
-div[data-testid="stMetric"]{
-    background:linear-gradient(180deg, rgba(17,23,35,.96) 0%, rgba(10,14,22,.99) 100%);
-    border:1px solid rgba(255,255,255,.08);
-    box-shadow:0 12px 28px rgba(0,0,0,.24);
-    border-radius:20px;
-    padding:16px 12px 14px 12px;
-    min-height:102px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    transition:all .18s ease;
-}
-div[data-testid="stMetric"]:hover{
-    transform:translateY(-2px);
-    border-color:rgba(255,255,255,.14);
-}
-div[data-testid="stMetricLabel"]{
-    font-size:.88rem !important;
-    color:#98a6ba !important;
-    text-align:center !important;
-    justify-content:center !important;
-}
-div[data-testid="stMetricLabel"] p{
-    margin:0 !important;
-    line-height:1.1 !important;
-    text-align:center !important;
-}
-div[data-testid="stMetricValue"]{
-    font-size:1.42rem !important;
-    font-weight:800 !important;
-    color:#f3f7ff !important;
-    line-height:1.08 !important;
-    text-align:center !important;
-    justify-content:center !important;
-}
-div[data-testid="stMetricValue"] > div{
-    white-space:normal !important;
-    overflow:visible !important;
-    text-overflow:clip !important;
-    text-align:center !important;
-}
-div[data-testid="stMetricDelta"]{
-    display:none !important;
-}
-
-.stPlotlyChart{
-    background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88));
-    border:1px solid var(--stroke);
-    border-radius:22px;
-    padding:10px 10px 2px 10px;
-    box-shadow:var(--shadow);
-}
-
-.stDataFrame{
-    border:1px solid var(--stroke) !important;
-    border-radius:20px !important;
-    overflow:hidden !important;
-}
-
-.stSelectbox > div > div,
-div[data-baseweb="select"] > div,
-div[data-baseweb="base-input"]{
-    background:rgba(12,17,26,.9) !important;
-    border:1px solid var(--stroke) !important;
-    border-radius:16px !important;
-    min-height:46px;
-}
-
-div.stButton > button{
-    min-height:46px;
-    border-radius:16px;
-    border:1px solid rgba(255,255,255,.10);
-    background:linear-gradient(135deg, rgba(110,168,255,.18), rgba(180,151,255,.16));
-    color:#eef4ff;
-    font-weight:600;
-}
-div.stButton > button:hover{
-    border-color:rgba(255,255,255,.18);
-    background:linear-gradient(135deg, rgba(110,168,255,.24), rgba(180,151,255,.22));
-}
-
-.soft-note{
-    font-size:.92rem;
-    color:var(--muted);
-    padding:11px 13px;
-    border-radius:16px;
-    background:rgba(255,255,255,.035);
-    border:1px solid rgba(255,255,255,.06);
-    margin:6px 0 10px 0;
-}
-
-.small-gap{
-    height:6px;
-}
-
-hr{
-    border-color:rgba(255,255,255,.08) !important;
-    margin-top:1rem !important;
-    margin-bottom:1rem !important;
-}
+.topbar::before{ content:""; position:absolute; inset:0; background: linear-gradient(120deg, rgba(34,211,238,.05), transparent 22%, transparent 78%, rgba(96,165,250,.05)), radial-gradient(circle at top left, rgba(45,212,191,.10), transparent 24%); pointer-events:none; }
+.topbar > *{ position:relative; z-index:1; }
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;}
+.logo-pill{ width:56px;height:56px;border-radius:18px; background:linear-gradient(180deg, #12213e 0%, #0f172a 100%); border:1px solid rgba(96,165,250,.22); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); display:flex;align-items:center;justify-content:center; color:white;font-weight:900;font-size:22px; }
+.top-kicker{ font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent-soft); margin-bottom:3px; font-weight:700; }
+.top-title{ font-size:24px; font-weight:800; letter-spacing:-0.04em; line-height:1.05; }
+.top-subtitle{ font-size:12px; color:var(--muted); margin-top:4px; }
+.top-right-badge { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.top-chip { padding:8px 12px; border-radius:999px; border:1px solid rgba(148,163,184,.14); background:rgba(255,255,255,.03); color:#dbe5f2; font-size:11px; backdrop-filter: blur(10px); }
+.top-chip span { color:var(--accent-soft); font-weight:700; }
+.control-row{ display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; margin-bottom: 12px; }
+.premium-note{ flex: 1 1 340px; padding:12px 14px; border-radius:18px; background:linear-gradient(180deg, rgba(15,20,27,.94), rgba(11,16,23,.94)); border:1px solid rgba(148,163,184,.12); color:var(--muted); box-shadow:0 12px 28px rgba(0,0,0,.18); }
+.section-head{ margin: 12px 0 8px 0; }
+.section-title{ font-size:18px; font-weight:800; letter-spacing:-.02em; color:#eef3fb; margin-bottom:2px; }
+.section-sub{ color:#9aa8bc; font-size:12px; margin-bottom:8px; line-height:1.45; }
+.kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+.kpi-card { flex:1 1 180px; min-width:0; padding:16px 16px; border-radius:20px; background:linear-gradient(180deg, rgba(17,24,33,.96), rgba(12,17,24,.96)); border:1px solid rgba(148,163,184,.12); box-shadow:0 12px 28px rgba(0,0,0,.20); position:relative; overflow:hidden; transition:transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
+.kpi-card::before{ content:""; position:absolute; inset:0 0 auto 0; height:3px; background:linear-gradient(90deg, var(--accent-soft), var(--accent-blue)); opacity:.95; }
+.kpi-card:hover{ transform:translateY(-2px); border-color:rgba(96,165,250,.24); box-shadow:0 18px 34px rgba(0,0,0,.24); }
+.kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--muted); margin-bottom:7px; font-weight:700; }
+.kpi-value { font-size:24px; font-weight:800; letter-spacing:-0.03em; }
+.kpi-pill { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.35; }
+div[role="radiogroup"]{ gap:8px !important; background:rgba(9,12,17,.82); border:1px solid rgba(148,163,184,.12); border-radius:18px; padding:8px; margin: 2px 0 16px 0; box-shadow:0 8px 24px rgba(0,0,0,.20); }
+div[role="radiogroup"] > label { margin:0 !important; background:transparent; border:1px solid transparent; border-radius:14px; padding:8px 14px !important; transition:all .16s ease; }
+div[role="radiogroup"] > label:hover { background:rgba(255,255,255,.035); border-color:rgba(148,163,184,.14); }
+div[role="radiogroup"] > label p { color:#cbd5e1 !important; font-weight:600; font-size:13px !important; }
+div[role="radiogroup"] > label:has(input:checked) { background:linear-gradient(135deg, rgba(45,212,191,.16), rgba(96,165,250,.13)); border-color:rgba(45,212,191,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+div[role="radiogroup"] > label:has(input:checked) p { color:white !important; }
+.stPlotlyChart, .stDataFrame, div[data-testid="stMetric"]{ border:1px solid rgba(148,163,184,.12) !important; border-radius:20px !important; box-shadow:0 12px 28px rgba(0,0,0,.18) !important; }
+.stPlotlyChart{ background:linear-gradient(180deg, rgba(13,17,26,.78), rgba(10,14,21,.88)) !important; padding:10px 10px 2px 10px !important; }
+.stDataFrame{ overflow:hidden !important; }
+.stDataFrame thead tr th { background:#0f172a !important; color:#e5e7eb !important; font-size:11px !important; text-transform:uppercase; }
+div[data-baseweb="select"] > div, div[data-baseweb="input"] > div, [data-testid="stTextInputRootElement"] > div, [data-testid="stNumberInputRootElement"] > div, [data-testid="stSelectbox"] > div, [data-testid="stMultiSelect"] > div, div[data-baseweb="base-input"]{ background: #0c1117 !important; color: var(--text) !important; border-color: rgba(148,163,184,.18) !important; border-radius:16px !important; min-height:50px !important; }
+.stButton > button{ border-radius:16px !important; border:1px solid rgba(148,163,184,.14) !important; background:linear-gradient(180deg, #111821, #0d131b) !important; color:#edf2f7 !important; font-weight:700 !important; padding:.72rem .95rem !important; min-height:50px !important; }
+.stButton > button:hover{ border-color:rgba(45,212,191,.28) !important; transform:translateY(-1px); }
+div[data-testid="stMetric"]{ background:linear-gradient(180deg, rgba(17,23,35,.96) 0%, rgba(10,14,22,.99) 100%) !important; min-height:102px; display:flex; align-items:center; justify-content:center; text-align:center; transition:all .18s ease; }
+div[data-testid="stMetric"]:hover{ transform:translateY(-2px); border-color:rgba(255,255,255,.14) !important; }
+div[data-testid="stMetricLabel"]{ font-size:.88rem !important; color:#98a6ba !important; text-align:center !important; justify-content:center !important; }
+div[data-testid="stMetricLabel"] p{ margin:0 !important; line-height:1.1 !important; text-align:center !important; }
+div[data-testid="stMetricValue"]{ font-size:1.42rem !important; font-weight:800 !important; color:#f3f7ff !important; line-height:1.08 !important; text-align:center !important; justify-content:center !important; }
+div[data-testid="stMetricValue"] > div{ white-space:normal !important; overflow:visible !important; text-overflow:clip !important; text-align:center !important; }
+div[data-testid="stMetricDelta"]{ display:none !important; }
+.soft-note{ font-size:.92rem; color:var(--muted); padding:11px 13px; border-radius:16px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); margin:6px 0 10px 0; }
+.small-gap{ height:6px; }
+hr { border:none !important; height:1px !important; background:linear-gradient(90deg, transparent, rgba(148,163,184,.18), transparent) !important; margin:.95rem 0 !important; }
+@media (max-width: 900px){ .block-container{padding-left:.7rem !important;padding-right:.7rem !important;} .topbar{flex-direction:column;align-items:flex-start;} .top-right-badge{justify-content:flex-start;} .top-title{font-size:20px;} .kpi-value{font-size:21px;} }
+@media (max-width: 768px){ .topbar{ top:8px; flex-direction:column; align-items:flex-start; gap:10px; padding:14px 14px; border-radius:18px; } .top-right-badge{ width:100%; justify-content:flex-start; gap:6px; } .top-chip{ padding:7px 12px; font-size:11px; } .logo-pill{ width:46px; height:46px; border-radius:14px; font-size:20px; } .top-title{ font-size:18px; line-height:1.12; } .top-subtitle{ font-size:11px; line-height:1.3; } .kpi-card{ padding:13px 14px; border-radius:16px; } .kpi-value{ font-size:18px; } }
 </style>
 """, unsafe_allow_html=True)
 
@@ -439,23 +339,44 @@ def preparar_gastos(df):
     return df.sort_values("DATA", ascending=False)
 
 
-# =========================
-# HERO
-# =========================
-st.markdown(f"""
-<div class="hero">
-    <div class="hero-top">
-        <div>
-            <div class="hero-badge">🌙 Painel financeiro pessoal</div>
-            <div class="hero-title">Atlas Financeiro</div>
-            <div class="hero-sub">Organização, clareza e visão do todo. Um mapa limpo para o seu dinheiro.</div>
-        </div>
-        <div class="hero-quote">“{random.choice(FRASES)}”</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
-col_refresh_1, col_refresh_2 = st.columns([1.2, 4.5])
+
+def render_topbar():
+    st.markdown(f"""
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="logo-pill">AF</div>
+        <div>
+          <div class="top-kicker">Dashboard financeiro premium</div>
+          <div class="top-title">Atlas Financeiro</div>
+          <div class="top-subtitle">Organização, clareza e visão do todo. Um painel mais limpo, firme e elegante para o seu dinheiro.</div>
+        </div>
+      </div>
+      <div class="top-right-badge">
+        <div class="top-chip">🌙 Visual <span>dark premium</span></div>
+        <div class="top-chip">📊 Base <span>Google Sheets</span></div>
+        <div class="top-chip">✨ Frase do dia <span>{random.choice(FRASES)}</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_kpi_cards(cards):
+    html = '<div class="kpi-row">'
+    for card in cards:
+        label = card.get('label', '')
+        value = card.get('value', '')
+        hint = card.get('hint', '')
+        html += f'<div class="kpi-card"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div><div class="kpi-pill">{hint}</div></div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+# =========================
+# HERO PREMIUM
+# =========================
+render_topbar()
+
+col_refresh_1, col_refresh_2 = st.columns([1.2, 4.8])
 with col_refresh_1:
     if st.button("🔄 Atualizar agora", use_container_width=True):
         st.cache_data.clear()
@@ -463,7 +384,7 @@ with col_refresh_1:
         st.rerun()
 with col_refresh_2:
     st.markdown(
-        '<div class="soft-note">Lançou algo na planilha e ele não apareceu? Dá um tapa elegante no cache com esse botão.</div>',
+        '<div class="premium-note">Mesmo motor, agora com acabamento de app caro: layout mais firme, respiro melhor e leitura mais gostosa. Se a planilha mudou, esse botão puxa a cena de volta pro presente.</div>',
         unsafe_allow_html=True
     )
 
@@ -729,9 +650,27 @@ def extrair_projeto_morar_sozinho(df_raw):
 # TABS
 # =========================
 
-tab_atlas, tab_morar = st.tabs(["🌙 Atlas Financeiro", "🏠 Projeto Morar Sozinho"])
 
-with tab_atlas:
+# =========================
+# NAVEGAÇÃO PREMIUM
+# =========================
+if "atlas_nav" not in st.session_state:
+    st.session_state.atlas_nav = "🌙 Atlas Financeiro"
+
+NAV_OPTS = ["🌙 Atlas Financeiro", "🏠 Projeto Morar Sozinho"]
+nav_index = NAV_OPTS.index(st.session_state.atlas_nav) if st.session_state.atlas_nav in NAV_OPTS else 0
+st.radio(
+    "Navegação",
+    options=NAV_OPTS,
+    index=nav_index,
+    key="atlas_nav",
+    horizontal=True,
+    label_visibility="collapsed",
+)
+
+nav = st.session_state.atlas_nav
+
+if nav == "🌙 Atlas Financeiro":
     # =========================
     # MÉTRICAS
     # =========================
@@ -742,13 +681,14 @@ with tab_atlas:
     </div>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("💵 Receita no Ano", formato_real(total_receita_ano))
-    c2.metric("💸 Despesa no Ano", formato_real(total_despesa_ano))
-    c3.metric("🏦 Saldo no Ano", formato_real(saldo_ano))
-    c4.metric("🧭 Saldo Restante", formato_real(saldo_restante))
-    c5.metric("📈 Investido", formato_real(valor_investido))
-    c6.metric("💎 Total em Construção", formato_real(patrimonio_em_construcao))
+    render_kpi_cards([
+        {"label": "Receita no ano", "value": formato_real(total_receita_ano), "hint": "Tudo que entrou no ano atual."},
+        {"label": "Despesa no ano", "value": formato_real(total_despesa_ano), "hint": "Tudo que saiu no ano atual."},
+        {"label": "Saldo no ano", "value": formato_real(saldo_ano), "hint": "Receita menos despesa, sem teatro."},
+        {"label": "Saldo restante", "value": formato_real(saldo_restante), "hint": "Projeção do que ainda pode sobrar nos meses à frente."},
+        {"label": "Investido", "value": formato_real(valor_investido), "hint": "Valor puxado da aba de investimento."},
+        {"label": "Total em construção", "value": formato_real(patrimonio_em_construcao), "hint": "Saldo restante somado ao que já está investido."},
+    ])
 
     st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
 
@@ -857,10 +797,11 @@ with tab_atlas:
         rec_mes = receitas[(receitas["ANO"] == ano_sel) & (receitas["MES"] == mes_txt)]
         des_mes = despesas[(despesas["ANO"] == ano_sel) & (despesas["MES"] == mes_txt)]
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("💵 Receitas", formato_real(rec_mes["VALOR"].sum()))
-        c2.metric("💸 Despesas", formato_real(des_mes["VALOR"].sum()))
-        c3.metric("🏦 Saldo", formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()))
+        render_kpi_cards([
+            {"label": "Receitas", "value": formato_real(rec_mes["VALOR"].sum()), "hint": f"Entradas do mês {mes_sel}."},
+            {"label": "Despesas", "value": formato_real(des_mes["VALOR"].sum()), "hint": f"Saídas do mês {mes_sel}."},
+            {"label": "Saldo", "value": formato_real(rec_mes["VALOR"].sum() - des_mes["VALOR"].sum()), "hint": "O que sobrou depois da poeira baixar."},
+        ])
 
         st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
         st.markdown("#### 💸 Despesas do mês selecionado")
@@ -962,11 +903,12 @@ with tab_atlas:
                 gastos_filt["CLASSIFICACAO"].astype(str).str.upper() == "DISPENSAVEL", "VALOR"
             ].sum()
 
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("💸 Total no período", formato_real(total_gastos))
-            m2.metric("🧾 Lançamentos", str(qtd_lanc))
-            m3.metric("👍 Indispensável", formato_real(total_indisp))
-            m4.metric("👎 Dispensável", formato_real(total_disp))
+            render_kpi_cards([
+                {"label": "Total no período", "value": formato_real(total_gastos), "hint": "Soma dos gastos no filtro atual."},
+                {"label": "Lançamentos", "value": str(qtd_lanc), "hint": "Quantidade de registros encontrados."},
+                {"label": "Indispensável", "value": formato_real(total_indisp), "hint": "O pedaço necessário do mês."},
+                {"label": "Dispensável", "value": formato_real(total_disp), "hint": "O que dá margem para apertar o freio."},
+            ])
 
             gc1, gc2 = st.columns([1, 1.45])
 
@@ -1087,225 +1029,226 @@ with tab_atlas:
             )
 
 
-with tab_morar:
-    st.markdown("""
-    <div class="section-head">
-        <div class="section-title">🏠 Projeto Morar Sozinho</div>
-        <div class="section-sub">Sua aba CUSTO DE VIDA virando mapa de decisão: o que pesa, o que cabe, e onde dá para mexer.</div>
-    </div>
-    """, unsafe_allow_html=True)
 
-    aba_custo_vida = encontrar_aba_custo_vida(nomes_abas)
-    if not aba_custo_vida:
-        st.info("Não encontrei a aba 'CUSTO DE VIDA' na planilha.")
-    else:
-        try:
-            raw_cv = carregar_custo_vida_raw(PLANILHA_URL, aba_custo_vida, st.session_state.refresh_key)
-            projeto = extrair_projeto_morar_sozinho(raw_cv)
+elif nav == "🏠 Projeto Morar Sozinho":
+        st.markdown("""
+        <div class="section-head">
+            <div class="section-title">🏠 Projeto Morar Sozinho</div>
+            <div class="section-sub">Sua aba CUSTO DE VIDA virando mapa de decisão: o que pesa, o que cabe, e onde dá para mexer.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            renda_total = projeto["renda_total"]
-            custos_totais = projeto["custos_totais"]
-            sobra_mes = projeto["sobra_mes"]
-            pct_sobra = projeto["pct_sobra"]
-            df_itens = projeto["df_itens"]
-            df_cat = projeto["df_cat"]
+        aba_custo_vida = encontrar_aba_custo_vida(nomes_abas)
+        if not aba_custo_vida:
+            st.info("Não encontrei a aba 'CUSTO DE VIDA' na planilha.")
+        else:
+            try:
+                raw_cv = carregar_custo_vida_raw(PLANILHA_URL, aba_custo_vida, st.session_state.refresh_key)
+                projeto = extrair_projeto_morar_sozinho(raw_cv)
 
-            if renda_total <= 0 or df_itens.empty:
-                st.warning("Achei a aba, mas não consegui montar o planejamento. Dá uma olhada se a estrutura segue o print que você mostrou.")
-            else:
-                reserva_6m = custos_totais * 6
-                pct_custos = (custos_totais / renda_total * 100) if renda_total > 0 else 0
+                renda_total = projeto["renda_total"]
+                custos_totais = projeto["custos_totais"]
+                sobra_mes = projeto["sobra_mes"]
+                pct_sobra = projeto["pct_sobra"]
+                df_itens = projeto["df_itens"]
+                df_cat = projeto["df_cat"]
 
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("💰 Renda total", formato_real(renda_total))
-                m2.metric("💸 Custos totais", f"{formato_real(custos_totais)} • {format_pct(pct_custos)}")
-                m3.metric("🫰 Sobra no mês", f"{formato_real(sobra_mes)} • {format_pct(pct_sobra)}")
-                m4.metric("🛟 Reserva ideal (6 meses)", formato_real(reserva_6m))
+                if renda_total <= 0 or df_itens.empty:
+                    st.warning("Achei a aba, mas não consegui montar o planejamento. Dá uma olhada se a estrutura segue o print que você mostrou.")
+                else:
+                    reserva_6m = custos_totais * 6
+                    pct_custos = (custos_totais / renda_total * 100) if renda_total > 0 else 0
 
-                mapa_cat = df_cat.set_index("CATEGORIA")["VALOR"].to_dict()
-                mapa_pct = df_cat.set_index("CATEGORIA")["PCT_RENDA"].to_dict()
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("💰 Renda total", formato_real(renda_total))
+                    m2.metric("💸 Custos totais", f"{formato_real(custos_totais)} • {format_pct(pct_custos)}")
+                    m3.metric("🫰 Sobra no mês", f"{formato_real(sobra_mes)} • {format_pct(pct_sobra)}")
+                    m4.metric("🛟 Reserva ideal (6 meses)", formato_real(reserva_6m))
 
-                moradia_val = mapa_cat.get("MORADIA", 0.0)
-                alimentacao_val = mapa_cat.get("ALIMENTAÇÃO", mapa_cat.get("ALIMENTACAO", 0.0))
-                transporte_val = mapa_cat.get("TRANSPORTE", 0.0)
-                outros_val = mapa_cat.get("OUTROS", 0.0)
+                    mapa_cat = df_cat.set_index("CATEGORIA")["VALOR"].to_dict()
+                    mapa_pct = df_cat.set_index("CATEGORIA")["PCT_RENDA"].to_dict()
 
-                moradia_pct = mapa_pct.get("MORADIA", 0.0)
-                alimentacao_pct = mapa_pct.get("ALIMENTAÇÃO", mapa_pct.get("ALIMENTACAO", 0.0))
-                transporte_pct = mapa_pct.get("TRANSPORTE", 0.0)
-                outros_pct = mapa_pct.get("OUTROS", 0.0)
+                    moradia_val = mapa_cat.get("MORADIA", 0.0)
+                    alimentacao_val = mapa_cat.get("ALIMENTAÇÃO", mapa_cat.get("ALIMENTACAO", 0.0))
+                    transporte_val = mapa_cat.get("TRANSPORTE", 0.0)
+                    outros_val = mapa_cat.get("OUTROS", 0.0)
 
-                st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
-                st.markdown("#### 📌 Leitura rápida do cenário")
-                st.markdown(
-                    f"""
-- **Moradia:** **{formato_real(moradia_val)}** → **{format_pct(moradia_pct)}**
-- **Alimentação:** **{formato_real(alimentacao_val)}** → **{format_pct(alimentacao_pct)}**
-- **Transporte:** **{formato_real(transporte_val)}** → **{format_pct(transporte_pct)}**
-- **Outros:** **{formato_real(outros_val)}** → **{format_pct(outros_pct)}**
-- **Sobra no mês:** **{formato_real(sobra_mes)}** → **{format_pct(pct_sobra)}**
-"""
-                )
+                    moradia_pct = mapa_pct.get("MORADIA", 0.0)
+                    alimentacao_pct = mapa_pct.get("ALIMENTAÇÃO", mapa_pct.get("ALIMENTACAO", 0.0))
+                    transporte_pct = mapa_pct.get("TRANSPORTE", 0.0)
+                    outros_pct = mapa_pct.get("OUTROS", 0.0)
 
-                c1, c2 = st.columns([1.1, 1])
+                    st.markdown('<div class="small-gap"></div>', unsafe_allow_html=True)
+                    st.markdown("#### 📌 Leitura rápida do cenário")
+                    st.markdown(
+                        f"""
+    - **Moradia:** **{formato_real(moradia_val)}** → **{format_pct(moradia_pct)}**
+    - **Alimentação:** **{formato_real(alimentacao_val)}** → **{format_pct(alimentacao_pct)}**
+    - **Transporte:** **{formato_real(transporte_val)}** → **{format_pct(transporte_pct)}**
+    - **Outros:** **{formato_real(outros_val)}** → **{format_pct(outros_pct)}**
+    - **Sobra no mês:** **{formato_real(sobra_mes)}** → **{format_pct(pct_sobra)}**
+    """
+                    )
 
-                with c1:
-                    st.markdown("#### 📊 Peso das categorias na renda")
-                    df_cat_plot = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
-                    ordem = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
-                    df_cat_plot["ORDEM"] = df_cat_plot["CATEGORIA"].map(ordem).fillna(99)
-                    df_cat_plot = df_cat_plot.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
+                    c1, c2 = st.columns([1.1, 1])
 
-                    fig_cat = go.Figure(go.Bar(
-                        x=df_cat_plot["CATEGORIA"],
-                        y=df_cat_plot["VALOR"],
-                        text=df_cat_plot["VALOR_FMT"],
+                    with c1:
+                        st.markdown("#### 📊 Peso das categorias na renda")
+                        df_cat_plot = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
+                        ordem = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
+                        df_cat_plot["ORDEM"] = df_cat_plot["CATEGORIA"].map(ordem).fillna(99)
+                        df_cat_plot = df_cat_plot.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
+
+                        fig_cat = go.Figure(go.Bar(
+                            x=df_cat_plot["CATEGORIA"],
+                            y=df_cat_plot["VALOR"],
+                            text=df_cat_plot["VALOR_FMT"],
+                            textposition="inside",
+                            insidetextanchor="middle",
+                            textfont=dict(size=13, color="#081018"),
+                            marker=dict(
+                                color=["#72E0B5", "#FFD36A", "#6EA8FF", "#B497FF"][:len(df_cat_plot)],
+                                line=dict(width=0)
+                            ),
+                            hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+                        ))
+                        fig_cat.update_layout(
+                            template=tema,
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            height=360,
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            xaxis_title="",
+                            yaxis_title="Valor (R$)",
+                            uniformtext_minsize=10,
+                            uniformtext_mode="hide",
+                            font=dict(color="#e5edf7", size=12),
+                            showlegend=False,
+                        )
+                        fig_cat.update_xaxes(showgrid=False)
+                        fig_cat.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
+                        st.plotly_chart(fig_cat, use_container_width=True)
+
+                    with c2:
+                        st.markdown("#### 🧠 Diagnóstico")
+                        if pct_sobra >= 30:
+                            st.success("Sua sobra está forte. O cenário respira e aceita melhor imprevistos.")
+                        elif pct_sobra >= 20:
+                            st.info("Seu plano está bom. Já existe folga, mas ainda dá para lapidar.")
+                        elif pct_sobra >= 10:
+                            st.warning("Dá para ir, mas o orçamento já sente qualquer tropeço.")
+                        else:
+                            st.error("Sua sobra está curta. Antes de acelerar, vale reduzir custos ou ganhar mais.")
+
+                        top_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].sort_values("PCT_RENDA", ascending=False).head(3)
+                        st.markdown("**Onde o dinheiro pesa mais:**")
+                        for _, row in top_cat.iterrows():
+                            st.write(f"• **{row['CATEGORIA'].title()}** consome **{row['PCT_RENDA_FMT']}** da sua renda.")
+                        st.markdown("**Leitura de bolso:**")
+                        st.write("• Moradia costuma ser o rei do tabuleiro.")
+                        st.write("• Se a sobra estiver baixa, cortar miudeza ajuda menos do que parece.")
+                        st.write("• Subcategoria que passa de 10% da renda já merece vigilância.")
+
+                    st.markdown("---")
+                    st.markdown("#### 🗂️ Resumo por categoria")
+                    tabela_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
+                    st.dataframe(
+                        tabela_cat[["CATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT", "FAIXA"]].rename(
+                            columns={
+                                "CATEGORIA": "Categoria",
+                                "VALOR_FMT": "Total",
+                                "PCT_RENDA_FMT": "% da renda",
+                                "FAIXA": "Peso",
+                            }
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                    st.markdown("---")
+                    st.markdown("#### 🔎 Subcategorias com análise")
+                    df_sub = df_itens[df_itens["CATEGORIA"] != "RENDA"].copy()
+                    ordem_sub = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
+                    df_sub["ORDEM"] = df_sub["CATEGORIA"].map(ordem_sub).fillna(99)
+                    df_sub = df_sub.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
+
+                    st.dataframe(
+                        df_sub[[
+                            "CATEGORIA", "SUBCATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT",
+                            "PCT_CATEGORIA_FMT", "FAIXA", "ANALISE"
+                        ]].rename(
+                            columns={
+                                "CATEGORIA": "Categoria",
+                                "SUBCATEGORIA": "Subcategoria",
+                                "VALOR_FMT": "Valor",
+                                "PCT_RENDA_FMT": "% da renda",
+                                "PCT_CATEGORIA_FMT": "% da categoria",
+                                "FAIXA": "Peso",
+                                "ANALISE": "Análise",
+                            }
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                    st.markdown("---")
+                    top_sub = df_sub.sort_values("PCT_RENDA", ascending=False).head(8)
+                    st.markdown("#### 🎯 Itens que mais pesam na renda")
+                    mapa_cores_sub = {
+                        "MORADIA": "#72E0B5",
+                        "ALIMENTAÇÃO": "#FFD36A",
+                        "ALIMENTACAO": "#FFD36A",
+                        "TRANSPORTE": "#6EA8FF",
+                        "OUTROS": "#B497FF",
+                    }
+                    cores_sub = [mapa_cores_sub.get(cat, "#6EA8FF") for cat in top_sub["CATEGORIA"]]
+
+                    fig_sub = go.Figure(go.Bar(
+                        x=top_sub["SUBCATEGORIA"],
+                        y=top_sub["VALOR"],
+                        text=top_sub["VALOR_FMT"],
                         textposition="inside",
                         insidetextanchor="middle",
-                        textfont=dict(size=13, color="#081018"),
-                        marker=dict(
-                            color=["#72E0B5", "#FFD36A", "#6EA8FF", "#B497FF"][:len(df_cat_plot)],
-                            line=dict(width=0)
-                        ),
+                        textfont=dict(size=12, color="#081018"),
+                        marker=dict(color=cores_sub, line=dict(width=0)),
                         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
                     ))
-                    fig_cat.update_layout(
+                    fig_sub.update_layout(
                         template=tema,
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
-                        height=360,
+                        height=420,
                         margin=dict(l=10, r=10, t=10, b=10),
                         xaxis_title="",
                         yaxis_title="Valor (R$)",
-                        uniformtext_minsize=10,
+                        uniformtext_minsize=9,
                         uniformtext_mode="hide",
                         font=dict(color="#e5edf7", size=12),
                         showlegend=False,
                     )
-                    fig_cat.update_xaxes(showgrid=False)
-                    fig_cat.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
-                    st.plotly_chart(fig_cat, use_container_width=True)
+                    fig_sub.update_xaxes(showgrid=False)
+                    fig_sub.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
+                    st.plotly_chart(fig_sub, use_container_width=True)
 
-                with c2:
-                    st.markdown("#### 🧠 Diagnóstico")
-                    if pct_sobra >= 30:
-                        st.success("Sua sobra está forte. O cenário respira e aceita melhor imprevistos.")
-                    elif pct_sobra >= 20:
-                        st.info("Seu plano está bom. Já existe folga, mas ainda dá para lapidar.")
-                    elif pct_sobra >= 10:
-                        st.warning("Dá para ir, mas o orçamento já sente qualquer tropeço.")
-                    else:
-                        st.error("Sua sobra está curta. Antes de acelerar, vale reduzir custos ou ganhar mais.")
+                    st.markdown("#### 🛠️ Simulação rápida")
+                    ajuste = st.slider(
+                        "Se você reduzisse seus custos mensais, quanto conseguiria cortar?",
+                        min_value=0,
+                        max_value=1000,
+                        value=200,
+                        step=10,
+                    )
+                    nova_sobra = sobra_mes + ajuste
+                    novo_pct_sobra = (nova_sobra / renda_total * 100) if renda_total > 0 else 0
 
-                    top_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].sort_values("PCT_RENDA", ascending=False).head(3)
-                    st.markdown("**Onde o dinheiro pesa mais:**")
-                    for _, row in top_cat.iterrows():
-                        st.write(f"• **{row['CATEGORIA'].title()}** consome **{row['PCT_RENDA_FMT']}** da sua renda.")
-                    st.markdown("**Leitura de bolso:**")
-                    st.write("• Moradia costuma ser o rei do tabuleiro.")
-                    st.write("• Se a sobra estiver baixa, cortar miudeza ajuda menos do que parece.")
-                    st.write("• Subcategoria que passa de 10% da renda já merece vigilância.")
+                    s1, s2 = st.columns(2)
+                    s1.metric("Nova sobra estimada", formato_real(nova_sobra))
+                    s2.metric("Nova sobra em % da renda", format_pct(novo_pct_sobra))
 
-                st.markdown("---")
-                st.markdown("#### 🗂️ Resumo por categoria")
-                tabela_cat = df_cat[df_cat["CATEGORIA"] != "RENDA"].copy()
-                st.dataframe(
-                    tabela_cat[["CATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT", "FAIXA"]].rename(
-                        columns={
-                            "CATEGORIA": "Categoria",
-                            "VALOR_FMT": "Total",
-                            "PCT_RENDA_FMT": "% da renda",
-                            "FAIXA": "Peso",
-                        }
-                    ),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                    st.markdown(
+                        f'<div class="soft-note">Com um ajuste de <b>{formato_real(ajuste)}</b> por mês, sua sobra iria para <b>{formato_real(nova_sobra)}</b>, o que representa <b>{format_pct(novo_pct_sobra)}</b> da renda.</div>',
+                        unsafe_allow_html=True,
+                    )
 
-                st.markdown("---")
-                st.markdown("#### 🔎 Subcategorias com análise")
-                df_sub = df_itens[df_itens["CATEGORIA"] != "RENDA"].copy()
-                ordem_sub = {"MORADIA": 1, "ALIMENTAÇÃO": 2, "TRANSPORTE": 3, "OUTROS": 4}
-                df_sub["ORDEM"] = df_sub["CATEGORIA"].map(ordem_sub).fillna(99)
-                df_sub = df_sub.sort_values(["ORDEM", "PCT_RENDA"], ascending=[True, False])
-
-                st.dataframe(
-                    df_sub[[
-                        "CATEGORIA", "SUBCATEGORIA", "VALOR_FMT", "PCT_RENDA_FMT",
-                        "PCT_CATEGORIA_FMT", "FAIXA", "ANALISE"
-                    ]].rename(
-                        columns={
-                            "CATEGORIA": "Categoria",
-                            "SUBCATEGORIA": "Subcategoria",
-                            "VALOR_FMT": "Valor",
-                            "PCT_RENDA_FMT": "% da renda",
-                            "PCT_CATEGORIA_FMT": "% da categoria",
-                            "FAIXA": "Peso",
-                            "ANALISE": "Análise",
-                        }
-                    ),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                st.markdown("---")
-                top_sub = df_sub.sort_values("PCT_RENDA", ascending=False).head(8)
-                st.markdown("#### 🎯 Itens que mais pesam na renda")
-                mapa_cores_sub = {
-                    "MORADIA": "#72E0B5",
-                    "ALIMENTAÇÃO": "#FFD36A",
-                    "ALIMENTACAO": "#FFD36A",
-                    "TRANSPORTE": "#6EA8FF",
-                    "OUTROS": "#B497FF",
-                }
-                cores_sub = [mapa_cores_sub.get(cat, "#6EA8FF") for cat in top_sub["CATEGORIA"]]
-
-                fig_sub = go.Figure(go.Bar(
-                    x=top_sub["SUBCATEGORIA"],
-                    y=top_sub["VALOR"],
-                    text=top_sub["VALOR_FMT"],
-                    textposition="inside",
-                    insidetextanchor="middle",
-                    textfont=dict(size=12, color="#081018"),
-                    marker=dict(color=cores_sub, line=dict(width=0)),
-                    hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
-                ))
-                fig_sub.update_layout(
-                    template=tema,
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    height=420,
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    xaxis_title="",
-                    yaxis_title="Valor (R$)",
-                    uniformtext_minsize=9,
-                    uniformtext_mode="hide",
-                    font=dict(color="#e5edf7", size=12),
-                    showlegend=False,
-                )
-                fig_sub.update_xaxes(showgrid=False)
-                fig_sub.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,0.08)", zeroline=False)
-                st.plotly_chart(fig_sub, use_container_width=True)
-
-                st.markdown("#### 🛠️ Simulação rápida")
-                ajuste = st.slider(
-                    "Se você reduzisse seus custos mensais, quanto conseguiria cortar?",
-                    min_value=0,
-                    max_value=1000,
-                    value=200,
-                    step=10,
-                )
-                nova_sobra = sobra_mes + ajuste
-                novo_pct_sobra = (nova_sobra / renda_total * 100) if renda_total > 0 else 0
-
-                s1, s2 = st.columns(2)
-                s1.metric("Nova sobra estimada", formato_real(nova_sobra))
-                s2.metric("Nova sobra em % da renda", format_pct(novo_pct_sobra))
-
-                st.markdown(
-                    f'<div class="soft-note">Com um ajuste de <b>{formato_real(ajuste)}</b> por mês, sua sobra iria para <b>{formato_real(nova_sobra)}</b>, o que representa <b>{format_pct(novo_pct_sobra)}</b> da renda.</div>',
-                    unsafe_allow_html=True,
-                )
-
-        except Exception as e:
-            st.error(f"Erro ao montar o Projeto Morar Sozinho: {e}")
+            except Exception as e:
+                st.error(f"Erro ao montar o Projeto Morar Sozinho: {e}")
